@@ -61,6 +61,7 @@ Read the plugin's status in **Plugin Manager → Synology Photos**. The Remote A
 
 | Status or symptom | What to check |
 | --- | --- |
+| “GitHub denied the request or its request limit was reached” when adding the repository | KS received HTTP 403 or 429 while fetching GitHub metadata or files. Its installer uses unauthenticated requests; GitHub allows 60 API requests per hour per public IP, shared by devices and tools using that connection. Wait until the allowance resets, or connect the kiosk through another network, then retry. ZIP installation can work while the API is limited because it skips repository discovery. This happens before the plugin runs and cannot be fixed by its NAS settings. See [GitHub's rate-limit documentation](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api). |
 | Invalid sharing link | Paste the whole link, including `http://` or `https://` and the final sharing token. A normal album page is not a sharing link. |
 | Synology API error | Confirm sharing is enabled for anyone with the link, the link has not expired, and the album password is correct. Synology returns version-dependent error codes; the status includes the code without exposing the server response. |
 | Hostname cannot be resolved / cannot connect / timeout | Open the same link on the kiosk. Check Wi-Fi, DNS, NAS address, port, firewall and reverse-proxy routing. Requests have two-second connection and read timeouts; slow remote links may need a faster route. |

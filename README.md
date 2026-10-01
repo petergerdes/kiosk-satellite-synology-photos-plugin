@@ -62,6 +62,8 @@ Live Photos are displayed as still images; videos are skipped. The slideshow use
 
 ## Troubleshooting
 
+**The screen goes black before a fade or slide.** Kiosk Satellite currently recreates the plugin's WebView for every photo update. Loading the replacement view causes a black gap before the transition starts; its duration depends on the device. This requires a fix in Kiosk Satellite. A proposed host patch and verification steps are available in the [renderer fix guide](docs/host-renderer-fix.md).
+
 Read the plugin's status in **Plugin Manager → Synology Photos**. The Remote Admin Overview also shows an album status tile.
 
 | Status or symptom | What to check |

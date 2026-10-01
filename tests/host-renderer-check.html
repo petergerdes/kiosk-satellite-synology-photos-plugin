@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Plugin screensaver update regression check</title>
+<p id="result">Running…</p>
+<iframe id="host" src="host.html" style="width:640px;height:400px;border:0"></iframe>
+<script>
+function check(condition, message) { if (!condition) throw Error(message); }
+document.getElementById('host').addEventListener('load', async function() {
+  try {
+    const view = this.contentWindow, document = view.document;
+    const old = document.querySelector('iframe'), callbacks = [];
+    const originalRAF = view.requestAnimationFrame;
+    view.requestAnimationFrame = callback => callbacks.push(callback);
+    const nextHtml = '<body style="background:#036"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jz1cAAAAASUVORK5CYII=">Next photo</body>';
+    let next;
+    await new Promise(resolve => {
+      view.ksUpdateDocument(nextHtml);
+      next = document.querySelectorAll('iframe')[1];
+      next.addEventListener('load', resolve, {once: true});
+      check(old.isConnected, 'Current photo removed before replacement loaded');
+      check(view.getComputedStyle(next).opacity === '0', 'Unloaded replacement was visible');
+    });
+    check(old.isConnected, 'Current photo removed before replacement could paint');
+    callbacks.shift()(0);
+    check(old.isConnected, 'Current photo removed before the second animation frame');
+    callbacks.shift()(0);
+    check(!old.isConnected && next.isConnected, 'Replacement did not retire the old frame');
+    check(view.getComputedStyle(next).opacity === '1', 'Loaded replacement is hidden');
+    view.ksUpdateDocument('<body>Obsolete update</body>');
+    const obsolete = document.querySelectorAll('iframe')[1];
+    const staleLoad = obsolete.onload;
+    let latest;
+    await new Promise(resolve => {
+      view.ksUpdateDocument(nextHtml + ' Latest');
+      latest = document.querySelectorAll('iframe')[1];
+      latest.addEventListener('load', resolve, {once: true});
+      staleLoad();
+    });
+    while (callbacks.length) callbacks.shift()(0);
+    check(!obsolete.isConnected && latest.isConnected, 'Stale load replaced the latest update');
+    check(document.querySelectorAll('iframe').length === 1, 'Old frames leaked');
+    check(latest.getAttribute('sandbox') === 'allow-scripts', 'Sandbox permissions changed');
+    let blocked = false;
+    try { latest.contentWindow.document; } catch (error) { blocked = error.name === 'SecurityError'; }
+    check(blocked, 'Plugin frame can read the host document');
+    view.requestAnimationFrame = originalRAF;
+    window.checkResult = {passed: true, checks: ['retains current frame while loading', 'waits for paint', 'latest update wins', 'retires old frames', 'preserves sandbox isolation']};
+    window.document.getElementById('result').textContent = 'All renderer update checks passed.';
+  } catch (error) {
+    window.checkResult = {passed: false, error: String(error)};
+    window.document.getElementById('result').textContent = String(error);
+  }
+}, {once: true});
+</script>

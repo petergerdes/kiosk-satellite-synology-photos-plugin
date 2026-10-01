@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 // JVM substitute for the Android-only encoder. Never included in the plugin ZIP.
 package android.util;
 

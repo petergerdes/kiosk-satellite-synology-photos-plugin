@@ -6,4 +6,4 @@ For a bug report, describe the expected behavior, what happened and the plugin s
 
 Keep the setup short, preserve the stable plugin and renderer IDs, and avoid new runtime dependencies where the Android or Java APIs cover the need. Add a focused test when changing protocol behavior or lifecycle logic.
 
-Contributions are licensed under the project's Apache-2.0 license. Third-party source must include its required license and attribution. Synology Photos' undocumented API may need version-specific investigation; do not claim compatibility solely from the fake-NAS tests.
+Contributions are licensed under the project's GPL-3.0 license. Third-party source must include its required license and attribution. Synology Photos' undocumented API may need version-specific investigation; do not claim compatibility solely from the fake-NAS tests.

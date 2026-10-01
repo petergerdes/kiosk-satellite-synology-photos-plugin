@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 // JVM test substitute; mirrors the Android codec calls using JDK ImageIO.
 package android.graphics;
 

@@ -4,7 +4,9 @@ Copyright 2026 Peter Gerdes and contributors
 This project includes the SDK interfaces and build/validation tooling from
 https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world
 by Kiosk Satellite contributors, licensed under Apache License 2.0.
-The upstream SDK and tooling are provided under the same license as this project.
+The upstream SDK and build/validation tooling remain Apache-2.0 licensed;
+see sdk/LICENSE. The plugin's original source is GPL-3.0-only licensed;
+see LICENSE. Custom test runners and tests follow the plugin's license.
 
 Kiosk Satellite and Synology Photos are names of their respective projects and
 owners. This community plugin is not endorsed by either project or by Synology.

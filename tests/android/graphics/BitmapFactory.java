@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-only
 // JVM test substitute. Android's real decoder is supplied by the device.
 package android.graphics;
 

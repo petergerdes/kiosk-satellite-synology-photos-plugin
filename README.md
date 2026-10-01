@@ -2,7 +2,7 @@
 
 Display photos from one Synology Photos album on your [Kiosk Satellite](https://github.com/jxlarrea/kiosk-satellite) kiosk. **Paste an album sharing link, optionally enter its password, and choose the screensaver.** No NAS account credentials, API keys, album IDs, Home Assistant integration, or extra server are needed.
 
-The plugin is open source under [Apache-2.0](LICENSE). It uses Kiosk Satellite's official [SDK 1 and plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world). This is an independent community project, unaffiliated with Synology or Kiosk Satellite.
+The plugin is open source under [GPL-3.0](LICENSE). It uses Kiosk Satellite's official [SDK 1 and plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world). This is an independent community project, unaffiliated with Synology or Kiosk Satellite.
 
 **Initial release:** tested against SDK 1, a simulated NAS, and a real password-protected Synology Photos album. All 18 photos, including Live Photos, were fetched and encoded on an Android API 36.1 emulator, and the HTML renderer was checked in a browser. Installation and display inside the actual Kiosk Satellite app still need a device check. Synology Photos uses an undocumented API that may change between versions. See [verification](docs/development.md#verification).
 
@@ -93,4 +93,4 @@ python3 tools/build.py
 
 The build produces `dist/synology-photos-0.1.0.zip`, its SHA-256 checksum and the release manifest. Python 3, JDK 17+ and an Android SDK are required for a build; tests need only Python and Java.
 
-The SDK and build tools are adapted from the [official plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world). See [NOTICE](NOTICE) for attribution. Synology API behavior was researched using the [shared-album client implementation](https://github.com/Caleb9/synology-photos-slideshow/blob/main/synology_photos_client.py) and [Synology Photos API observations](https://github.com/zeichensatz/SynologyPhotosAPI). No code from those Synology clients is bundled.
+The SDK and build tools are adapted from the [official plugin template](https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world) and retain their [Apache-2.0 license](sdk/LICENSE). See [NOTICE](NOTICE) for attribution. Synology API behavior was researched using the [shared-album client implementation](https://github.com/Caleb9/synology-photos-slideshow/blob/main/synology_photos_client.py) and [Synology Photos API observations](https://github.com/zeichensatz/SynologyPhotosAPI). No code from those Synology clients is bundled.

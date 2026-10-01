@@ -8,8 +8,11 @@
   "entryClass": "io.github.petergerdes.kiosk.synology.SynologyPhotosPlugin",
   "description": "Show a Synology Photos album as your screensaver. Paste an album sharing link; no NAS account or album ID needed.",
   "author": "Peter Gerdes",
-  "license": "Apache-2.0",
-  "capabilities": ["screensaver", "host.read"],
+  "license": "GPL-3.0-only",
+  "capabilities": [
+    "screensaver",
+    "host.read"
+  ],
   "settings": [
     {
       "key": "albumUrl",
@@ -52,7 +55,10 @@
       "type": "select",
       "title": "Photo layout",
       "default": "Fit whole photo",
-      "options": ["Fit whole photo", "Fill screen"],
+      "options": [
+        "Fit whole photo",
+        "Fill screen"
+      ],
       "group": "Slideshow",
       "description": "Fit keeps the entire photo on a black background. Fill crops the edges to fill the available space."
     },
@@ -69,6 +75,18 @@
       "description": "Refresh the photo list while this screensaver is active. Use Reconnect and refresh to check immediately."
     }
   ],
-  "commands": [{"id": "refresh", "title": "Reconnect and refresh album"}],
-  "groups": [{"title": "Connect your album"}, {"title": "Slideshow"}]
+  "commands": [
+    {
+      "id": "refresh",
+      "title": "Reconnect and refresh album"
+    }
+  ],
+  "groups": [
+    {
+      "title": "Connect your album"
+    },
+    {
+      "title": "Slideshow"
+    }
+  ]
 }

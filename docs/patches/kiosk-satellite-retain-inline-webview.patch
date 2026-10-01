@@ -4,7 +4,7 @@ index f3f25a3..9432ca5 100644
 +++ b/app/lib/ui/plugin_screensaver.dart
 @@ -11,11 +11,33 @@ import 'package:kiosk_satellite/core/lifecycle.dart';
  import '../managers/settings/definitions.dart' as defs;
- 
+
  /// An isolated rendering document. All input and screensaver policy stays in KS.
 -String pluginScreensaverDocument(String html) => '''<!doctype html>
 +String pluginScreensaverDocument(String html) =>
@@ -36,7 +36,7 @@ index f3f25a3..9432ca5 100644
 +  document.body.appendChild(next);
 +};
 +</script></body></html>''';
- 
+
  /// Configuration travels in the fragment, never in the local asset request path.
  Uri? pluginScreensaverAssetUrl(Map<String, Object?> renderer) {
 @@ -44,7 +66,14 @@ class PluginScreensaver extends StatelessWidget {
@@ -61,7 +61,7 @@ index f3f25a3..9432ca5 100644
    bool _failed = false;
 +  bool _loaded = false;
 +  String? _inlineHtml;
- 
+
    @override
    void initState() {
      super.initState();
@@ -72,7 +72,7 @@ index f3f25a3..9432ca5 100644
 @@ -107,6 +139,35 @@ class _DocumentState extends State<_Document> with WidgetsBindingObserver {
      });
    }
- 
+
 +  @override
 +  void didUpdateWidget(covariant _Document oldWidget) {
 +    super.didUpdateWidget(oldWidget);

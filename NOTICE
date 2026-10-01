@@ -1,0 +1,10 @@
+Synology Photos screensaver for Kiosk Satellite
+Copyright 2026 Peter Gerdes and contributors
+
+This project includes the SDK interfaces and build/validation tooling from
+https://github.com/jxlarrea/kiosk-satellite-plugin-hello-world
+by Kiosk Satellite contributors, licensed under Apache License 2.0.
+The upstream SDK and tooling are provided under the same license as this project.
+
+Kiosk Satellite and Synology Photos are names of their respective projects and
+owners. This community plugin is not endorsed by either project or by Synology.

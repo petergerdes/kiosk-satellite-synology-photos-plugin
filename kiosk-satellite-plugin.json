@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "id": "synology-photos",
+  "name": "Synology Photos",
+  "version": "0.1.0",
+  "apiVersion": 1,
+  "minAndroidSdk": 24,
+  "entryClass": "io.github.petergerdes.kiosk.synology.SynologyPhotosPlugin",
+  "description": "Show a Synology Photos album as your screensaver. Paste an album sharing link; no NAS account or album ID needed.",
+  "author": "Peter Gerdes",
+  "license": "Apache-2.0",
+  "capabilities": ["screensaver", "host.read"],
+  "settings": [
+    {
+      "key": "albumUrl",
+      "type": "string",
+      "title": "Album sharing link",
+      "default": "",
+      "group": "Connect your album",
+      "description": "In Synology Photos, open the album, enable sharing for anyone with the link, then paste the full link here. Use an address reachable from the kiosk. Setup checks the album automatically."
+    },
+    {
+      "key": "albumPassword",
+      "type": "string",
+      "title": "Album password (optional)",
+      "default": "",
+      "group": "Connect your album",
+      "description": "Only the sharing-link password, never your NAS account password. Leave blank if the album has no password. SDK 1 stores and displays this as an ordinary text setting."
+    },
+    {
+      "key": "intervalSeconds",
+      "type": "number",
+      "title": "Time per photo",
+      "default": 30,
+      "min": 5,
+      "max": 300,
+      "step": 5,
+      "unit": "s",
+      "group": "Slideshow",
+      "description": "How long to show each photo while the screensaver is active."
+    },
+    {
+      "key": "shuffle",
+      "type": "boolean",
+      "title": "Shuffle photos",
+      "default": true,
+      "group": "Slideshow",
+      "description": "Show every usable photo once per pass in random order. Turn off to use oldest-to-newest order."
+    },
+    {
+      "key": "fit",
+      "type": "select",
+      "title": "Photo layout",
+      "default": "Fit whole photo",
+      "options": ["Fit whole photo", "Fill screen"],
+      "group": "Slideshow",
+      "description": "Fit keeps the entire photo on a black background. Fill crops the edges to fill the available space."
+    },
+    {
+      "key": "refreshMinutes",
+      "type": "number",
+      "title": "Check for album changes",
+      "default": 15,
+      "min": 1,
+      "max": 120,
+      "step": 1,
+      "unit": "min",
+      "group": "Slideshow",
+      "description": "Refresh the photo list while this screensaver is active. Use Reconnect and refresh to check immediately."
+    }
+  ],
+  "commands": [{"id": "refresh", "title": "Reconnect and refresh album"}],
+  "groups": [{"title": "Connect your album"}, {"title": "Slideshow"}]
+}

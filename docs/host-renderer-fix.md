@@ -6,7 +6,7 @@ The SDK exposes no method to update a running document. Changing the plugin's CS
 
 ## Proposed Kiosk Satellite patch
 
-The fix is also committed in [our Kiosk Satellite fork](https://github.com/petergerdes/kiosk-satellite/commit/716329b951488f2a7afa746ce52c71a676ba23ce), on branch `fix/plugin-screensaver-black-flash`. On October 1, 2026, GitHub rejected upstream PR creation: [Kiosk Satellite restricts new pull requests](https://github.com/jxlarrea/kiosk-satellite/pulls), and the repository API reports `has_pull_requests: false`. No upstream PR was created. The maintainer must allow submission or accept the patch through another channel.
+The fix is also committed in [our Kiosk Satellite fork](https://github.com/petergerdes/kiosk-satellite/commit/716329b951488f2a7afa746ce52c71a676ba23ce), on branch `fix/plugin-screensaver-black-flash`. On October 1, 2026, GitHub rejected upstream PR creation: [Kiosk Satellite restricts new pull requests](https://github.com/jxlarrea/kiosk-satellite/pulls), and the repository API reports `has_pull_requests: false`. No upstream PR was created. We submitted [issue #782](https://github.com/jxlarrea/kiosk-satellite/issues/782) instead, explaining the bug and linking the proposed fix for the maintainer to review.
 
 [Download the patch](patches/kiosk-satellite-retain-inline-webview.patch). It applies to Kiosk Satellite commit `15dd10e971efa0ada0e206b813aaa687ce19a91d`.
 

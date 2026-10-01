@@ -58,7 +58,9 @@ For a gentle slideshow, choose **Fade** with **Ken Burns**. For still photos tha
 
 When updating from 0.1.0, **Photo order** replaces the **Shuffle photos** toggle and starts at **Shuffle**. Choose **Oldest first** to keep the previous non-shuffled behavior. Your album connection and other compatible settings are retained.
 
-Live Photos are displayed as still images; videos are skipped. The slideshow uses Synology-generated previews, including previews for formats such as HEIC. Photos are resized and compressed when needed, up to 1920 pixels on the longest side. Albums must contain fewer than 50,000 total items.
+Live Photos are displayed as still images; videos are skipped. The slideshow requests Synology's largest available preview, including previews for formats such as HEIC. Photos retain up to 1920 pixels on the longest side, with high-quality WebP compression and gradual resizing when needed to fit the screensaver. Previews that already fit are displayed unchanged. Albums must contain fewer than 50,000 total items.
+
+For the sharpest display, choose **Fit whole photo** and **Photo motion → None** to avoid enlarging cropped or zoomed photos. The source preview's resolution still limits the detail available; this plugin does not download full-resolution originals.
 
 ## Troubleshooting
 

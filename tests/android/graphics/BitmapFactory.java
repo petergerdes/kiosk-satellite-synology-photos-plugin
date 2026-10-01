@@ -9,6 +9,8 @@ import javax.imageio.ImageIO;
 public final class BitmapFactory {
     public static final class Options {
         public boolean inJustDecodeBounds;
+        public boolean inScaled = true;
+        public int inDensity, inTargetDensity;
         public int outWidth, outHeight, inSampleSize = 1;
     }
 
@@ -20,8 +22,13 @@ public final class BitmapFactory {
             if (options.inJustDecodeBounds) return null;
             int width = Math.max(1, image.getWidth() / options.inSampleSize);
             int height = Math.max(1, image.getHeight() / options.inSampleSize);
+            if (options.inScaled && options.inDensity > 0 && options.inTargetDensity > 0) {
+                width = Math.max(1, Math.round(width * (float) options.inTargetDensity / options.inDensity));
+                height = Math.max(1, Math.round(height * (float) options.inTargetDensity / options.inDensity));
+            }
             BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
             java.awt.Graphics2D graphics = scaled.createGraphics();
+            graphics.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
             graphics.drawImage(image, 0, 0, width, height, null);
             graphics.dispose();
             return new Bitmap(scaled);

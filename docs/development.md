@@ -18,7 +18,7 @@ python3 tools/build.py --android-platform 35
 
 Without `--android-platform`, the builder selects the highest installed numeric platform. The package still targets a minimum Android API of 24. SDK interfaces are compiled separately and excluded from the plugin's DEX files. Android supplies `org.json` and `android.util.Base64`; there are no third-party runtime dependencies.
 
-The JVM test runner downloads a pinned `org.json` test-only jar from Maven Central into ignored `.cache/`, verifies its SHA-256, and uses test substitutes for Android's Base64 and bitmap APIs (JDK ImageIO supplies the test codec). After the first run, the test dependency can be used offline. Neither the jar nor the substitutes are packaged in the plugin.
+The JVM test runner downloads a pinned `org.json` test-only jar from Maven Central into ignored `.cache/`, verifies its SHA-256, and uses test substitutes for Android's Base64 and bitmap APIs (JDK ImageIO supplies the test codec). ImageIO has no WebP encoder, so JVM checks exercise the JPEG fallback; the native check below verifies actual WebP output. After the first run, the test dependency can be used offline. Neither the jar nor the substitutes are packaged in the plugin.
 
 ## Code
 
@@ -34,7 +34,7 @@ The JVM test runner downloads a pinned `org.json` test-only jar from Maven Centr
 
 The sharing login uses `SYNO.Core.Sharing.Login` at the Photos application's `webapi/entry.cgi`, without the sharing-routing header. Album calls use the shared-link route's `webapi/entry.cgi`, the `X-SYNO-SHARING` header and the sharing session cookie. Listing uses `SYNO.Foto.Browse.Item` v1 in pages of 100; thumbnails use `SYNO.Foto.Thumbnail` v2. API string arguments are JSON-quoted and then form-encoded in the POST body, including the login password. No account login, writing, downloading originals, or global TLS/cookie configuration is implemented.
 
-KS blocks external requests inside a screensaver WebView. The worker therefore fetches thumbnails and publishes inline HTML using `publishScreensaver`. Each network image is limited to 8 MiB. Android's bitmap codec checks dimensions, downsamples when the longest side exceeds 1920 pixels, and tries JPEG quality levels 85, 70, 55 and 40 if needed. Each display image is capped at 190,000 bytes. Two images plus Base64 and markup stay below KS's 512 KiB HTML limit.
+KS blocks external requests inside a screensaver WebView. The worker therefore fetches thumbnails and publishes inline HTML using `publishScreensaver`. Each network image is limited to 8 MiB. The client requests XL first; M and SM remain fallbacks for unavailable or invalid previews. Android's bitmap codec preserves previews that already fit, otherwise uses sampled decoding with density scaling to retain up to 1920 pixels on the longest side. It tries WebP quality levels 95, 90, 85 and 80, with JPEG fallback if WebP encoding fails. If the image still exceeds the budget, filtered resizing reduces its dimensions by 15% per step rather than immediately switching to a small NAS thumbnail. Each display image is capped at 190,000 bytes. Two images plus Base64 and markup stay below KS's 512 KiB HTML limit.
 
 KS recreates the document on every publication. For fade and slide transitions, the worker includes the previous image and the next image in the new document. CSS animates the incoming layer once both images have loaded; opaque black layer backgrounds prevent a previous landscape photo from showing through a new portrait photo's margins. Ken Burns pans and zooms the incoming image over the configured photo interval. The previous image holds its final motion position, and the renderer respects `prefers-reduced-motion`. Recreating the WebView may still cause a brief flash on some devices. There is no JavaScript bridge, local HTTP server, or persistent offline photo cache.
 
@@ -69,13 +69,19 @@ For an optional live test, create an ignored private file such as `.cache/live-c
 python3 tools/test.py --live-config .cache/live-config.json
 ```
 
-This checks login, listing and the first thumbnail using the JVM test codec. To check every photo with the actual Android bitmap APIs, start a developer emulator, get its serial from `adb devices`, and run:
+This checks login, listing and the first thumbnail using the JVM test codec. To verify resolution retention, WebP encoding/decoding and adaptive resizing with synthetic images, start a developer emulator, get its serial from `adb devices`, and run:
+
+```sh
+python3 tools/test-android.py --serial emulator-5554
+```
+
+To also check every photo in a live album with the actual Android bitmap APIs:
 
 ```sh
 python3 tools/test-android.py .cache/live-config.json --serial emulator-5554
 ```
 
-The Android test builds a temporary DEX harness, runs it using the emulator's shell `app_process`, and removes its private files from the emulator afterward. It saves a private first-photo preview under ignored `.cache/preview/android.html`. This does not install or test the KS app. Delete the private config and previews after testing; they must not be published.
+The Android test builds a temporary DEX harness, runs it using the emulator's shell `app_process`, and removes its private files from the emulator afterward. With a live config, it saves a private two-photo preview under ignored `.cache/preview/android.html`. This does not install or test the KS app. Delete the private config and previews after testing; they must not be published.
 
 Verification performed on 2026-10-01:
 
@@ -87,6 +93,8 @@ Verification performed on 2026-10-01:
 | Android native codec | Passed on an Android API 36.1 arm64 emulator; all 18 processed images stayed within the HTML budget. |
 | Browser renderer | Embedded image decoded at 1707 × 1280; landscape and portrait layouts fit their viewport without overflow. |
 | KS app installation and physical kiosk | Not yet tested. |
+
+For 0.2.1, synthetic Android codec checks additionally verify a 1920 × 960 WebP image and a difficult noisy image within the display budget. This version's live-album quality comparison could not be completed because the temporary sharing access no longer authenticated. Physical Echo Show sharpness remains to be verified.
 
 Before claiming full device compatibility, complete this checklist on a real NAS and kiosk:
 

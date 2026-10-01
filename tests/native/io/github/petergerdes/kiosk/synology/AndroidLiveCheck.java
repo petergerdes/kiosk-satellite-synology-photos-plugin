@@ -2,6 +2,7 @@
 package io.github.petergerdes.kiosk.synology;
 
 import android.graphics.BitmapFactory;
+import android.graphics.Bitmap;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -16,6 +17,19 @@ import org.json.JSONObject;
 /** Run using app_process on a developer emulator; exercises the real Android codec. */
 public final class AndroidLiveCheck {
     public static void main(String[] args) throws Exception {
+        try { run(args); }
+        catch (Exception | AssertionError error) {
+            // app_process otherwise reports failures only to Logcat, then exits
+            // with SIGKILL, hiding the actual failure from the test runner.
+            error.printStackTrace(System.err);
+            System.exit(1);
+        }
+    }
+
+    private static void run(String[] args) throws Exception {
+        codecQuality();
+        System.out.println("Android WebP codec and resolution checks passed.");
+        if (args.length == 1 && "--codec-only".equals(args[0])) return;
         ByteArrayOutputStream configBytes = new ByteArrayOutputStream();
         try (InputStream in = new FileInputStream(args[0])) {
             byte[] buffer = new byte[1024]; int length;
@@ -24,9 +38,10 @@ public final class AndroidLiveCheck {
         JSONObject config = new JSONObject(new String(configBytes.toByteArray(), StandardCharsets.UTF_8));
         try (SynologyClient client = new SynologyClient(config.getString("albumUrl"), config.optString("albumPassword"))) {
             client.login();
+            System.out.println("Shared album connected; checking display images.");
             List<SynologyClient.Photo> photos = client.listPhotos();
             if (photos.isEmpty()) throw new AssertionError("No live album photos");
-            int count = 0, max = 0;
+            int count = 0, max = 0, minSide = Integer.MAX_VALUE, maxSide = 0, small = 0, webp = 0;
             SynologyClient.Image previous = null;
             Map<String, Object> settings = new HashMap<>();
             settings.put("transition", "Fade");
@@ -41,6 +56,11 @@ public final class AndroidLiveCheck {
                 if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || Math.max(bounds.outWidth, bounds.outHeight) > 1920) {
                     throw new AssertionError("Invalid or oversized display image");
                 }
+                int side = Math.max(bounds.outWidth, bounds.outHeight);
+                minSide = Math.min(minSide, side);
+                maxSide = Math.max(maxSide, side);
+                if (side < 1024) small++;
+                if ("image/webp".equals(image.mime)) webp++;
                 if (count == 0 || count == 1) try (OutputStream out = new FileOutputStream(args[1])) {
                     out.write(html.getBytes(StandardCharsets.UTF_8));
                 }
@@ -48,7 +68,39 @@ public final class AndroidLiveCheck {
                 previous = image;
                 max = Math.max(max, image.bytes.length);
             }
-            System.out.println("Android live check passed: " + count + " photos fetched and encoded; largest display image " + max + " bytes.");
+            System.out.println("Android live check passed: " + count + " photos fetched and encoded; largest display image " + max
+                + " bytes; longest-side range " + minSide + "–" + maxSide + " px; " + small + " images below 1024 px; " + webp + " WebP images.");
         }
+    }
+
+    private static void codecQuality() throws Exception {
+        for (boolean noisy : new boolean[]{false, true}) codecQuality(noisy);
+    }
+
+    private static void codecQuality(boolean noisy) throws Exception {
+        Bitmap fixture = Bitmap.createBitmap(2050, 1025, Bitmap.Config.ARGB_8888);
+        ByteArrayOutputStream original = new ByteArrayOutputStream();
+        java.util.Random random = new java.util.Random(42);
+        try {
+            for (int y = 0; y < 1025; y++) for (int x = 0; x < 2050; x++) {
+                fixture.setPixel(x, y, noisy ? 0xff000000 | random.nextInt(0x1000000)
+                    : (x / 64 + y / 64) % 2 == 0 ? 0xff507ca3 : 0xffdbb876);
+            }
+            if (!fixture.compress(Bitmap.CompressFormat.PNG, 100, original)) throw new AssertionError("Fixture encoding failed");
+        } finally { fixture.recycle(); }
+        SynologyClient.Image image = PhotoEncoder.fit(original.toByteArray(), "image/png");
+        if (!"image/webp".equals(image.mime) || !image.mime.equals(SynologyClient.imageMime(image.bytes))) {
+            throw new AssertionError("Native WebP encoding failed");
+        }
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeByteArray(image.bytes, 0, image.bytes.length, bounds);
+        if (bounds.outWidth > 1920 || bounds.outWidth <= 640 || image.bytes.length > PhotoHtml.MAX_IMAGE_BYTES
+                || (!noisy && (bounds.outWidth != 1920 || bounds.outHeight != 960))) {
+            throw new AssertionError("High-detail fixture lost resolution or exceeded its budget: " + bounds.outWidth + "x" + bounds.outHeight);
+        }
+        Bitmap decoded = BitmapFactory.decodeByteArray(image.bytes, 0, image.bytes.length, new BitmapFactory.Options());
+        if (decoded == null) throw new AssertionError("WebP image cannot be fully decoded");
+        decoded.recycle();
     }
 }

@@ -8,6 +8,7 @@ import java.io.IOException;
 
 /** Keep XL detail within KS's HTML limit using Android's built-in image codec. */
 final class PhotoEncoder {
+    @SuppressWarnings("deprecation") // WEBP is available on every supported Android version (API 24+).
     static SynologyClient.Image fit(byte[] bytes, String mime) throws IOException {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
@@ -17,18 +18,40 @@ final class PhotoEncoder {
             return new SynologyClient.Image(bytes, mime);
         }
         options.inSampleSize = 1;
-        while (Math.max(options.outWidth, options.outHeight) / options.inSampleSize > 1920) options.inSampleSize *= 2;
+        int longest = Math.max(options.outWidth, options.outHeight);
+        while (longest / (options.inSampleSize * 2) >= 1920) options.inSampleSize *= 2;
+        // Density scaling reaches the exact target instead of halving below it.
+        options.inScaled = true;
+        options.inDensity = longest;
+        options.inTargetDensity = Math.min(longest, 1920 * options.inSampleSize);
         options.inJustDecodeBounds = false;
         Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
         if (bitmap == null) throw new IOException("Synology returned an unsupported thumbnail.");
         try {
-            for (int quality : new int[]{85, 70, 55, 40}) {
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                if (bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out) && out.size() <= PhotoHtml.MAX_IMAGE_BYTES) {
-                    return new SynologyClient.Image(out.toByteArray(), "image/jpeg");
+            while (true) {
+                for (int quality : new int[]{95, 90, 85, 80}) {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    String encodedMime = "image/webp";
+                    boolean encoded = bitmap.compress(Bitmap.CompressFormat.WEBP, quality, out);
+                    if (!encoded) {
+                        out.reset();
+                        encodedMime = "image/jpeg";
+                        encoded = bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out);
+                    }
+                    if (encoded && out.size() <= PhotoHtml.MAX_IMAGE_BYTES) {
+                        return new SynologyClient.Image(out.toByteArray(), encodedMime);
+                    }
                 }
+                if (Math.max(bitmap.getWidth(), bitmap.getHeight()) <= 256) {
+                    throw new IOException("Unable to encode this photo within the screensaver budget.");
+                }
+                // Retain XL detail with a filtered, gradual resize rather than
+                // jumping straight to Synology's much smaller M thumbnail.
+                Bitmap smaller = Bitmap.createScaledBitmap(bitmap, Math.max(1, Math.round(bitmap.getWidth() * 0.85f)),
+                    Math.max(1, Math.round(bitmap.getHeight() * 0.85f)), true);
+                bitmap.recycle();
+                bitmap = smaller;
             }
-            throw new IOException("Thumbnail cannot fit the screensaver budget; trying a smaller size.");
         } finally { bitmap.recycle(); }
     }
 }

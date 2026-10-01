@@ -143,6 +143,15 @@ public final class PluginTest {
         java.awt.image.BufferedImage decoded = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(result.bytes));
         assert decoded != null && Math.max(decoded.getWidth(), decoded.getHeight()) <= 1920;
         assert PhotoHtml.photo(result.bytes, result.mime, false).getBytes(StandardCharsets.UTF_8).length < 524288;
+        assert Math.max(decoded.getWidth(), decoded.getHeight()) > 640 : "Detailed XL image collapsed to thumbnail resolution";
+
+        java.awt.image.BufferedImage large = new java.awt.image.BufferedImage(2050, 1025, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        out.reset();
+        javax.imageio.ImageIO.write(large, "png", out);
+        SynologyClient.Image resized = PhotoEncoder.fit(out.toByteArray(), "image/png");
+        decoded = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(resized.bytes));
+        assert decoded.getWidth() == 1920 && decoded.getHeight() == 960 : "Decode sampling halved below the target";
+        assert resized.bytes.length <= PhotoHtml.MAX_IMAGE_BYTES;
     }
 
     static void liveNas(Path configPath) throws Exception {

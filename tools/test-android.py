@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a private shared album using real Android codecs on a connected developer emulator."""
+"""Check real Android codecs on a developer emulator, optionally using a private shared album."""
 import argparse
 import os
 from pathlib import Path
@@ -10,7 +10,7 @@ from android_sdk import android_platform
 
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('config', type=Path, help='Private JSON with albumUrl and albumPassword')
+parser.add_argument('config', type=Path, nargs='?', help='Private JSON with albumUrl and albumPassword; omit for codec-only checks')
 parser.add_argument('--serial', required=True, help='Developer emulator serial from adb devices')
 args = parser.parse_args()
 sdk = Path(os.environ.get('ANDROID_HOME', os.environ.get('ANDROID_SDK_ROOT', str(Path.home() / 'android-sdk'))))
@@ -39,12 +39,15 @@ with tempfile.TemporaryDirectory(prefix='synology-android-check-') as folder:
     subprocess.run([*adb, 'shell', 'mkdir', '-m', '700', device_dir], check=True)
     try:
         subprocess.run([*adb, 'push', str(dex / 'classes.dex'), device_dir + '/check.dex'], check=True)
-        subprocess.run([*adb, 'push', str(args.config.resolve()), device_dir + '/config.json'], check=True)
+        if args.config:
+            subprocess.run([*adb, 'push', str(args.config.resolve()), device_dir + '/config.json'], check=True)
         subprocess.run([*adb, 'shell', 'CLASSPATH=' + device_dir + '/check.dex', 'app_process', '/system/bin',
-                        'io.github.petergerdes.kiosk.synology.AndroidLiveCheck', device_dir + '/config.json',
-                        device_dir + '/preview.html'], check=True, timeout=180)
-        preview = root / '.cache/preview'
-        preview.mkdir(parents=True, exist_ok=True)
-        subprocess.run([*adb, 'pull', device_dir + '/preview.html', str(preview / 'android.html')], check=True)
+                        'io.github.petergerdes.kiosk.synology.AndroidLiveCheck',
+                        *([device_dir + '/config.json', device_dir + '/preview.html'] if args.config else ['--codec-only'])],
+                       check=True, timeout=180)
+        if args.config:
+            preview = root / '.cache/preview'
+            preview.mkdir(parents=True, exist_ok=True)
+            subprocess.run([*adb, 'pull', device_dir + '/preview.html', str(preview / 'android.html')], check=True)
     finally:
         subprocess.run([*adb, 'shell', 'rm', '-rf', device_dir], check=True)

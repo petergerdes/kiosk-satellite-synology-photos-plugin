@@ -6,6 +6,8 @@ The SDK exposes no method to update a running document. Changing the plugin's CS
 
 ## Proposed Kiosk Satellite patch
 
+The fix is also committed in [our Kiosk Satellite fork](https://github.com/petergerdes/kiosk-satellite/commit/716329b951488f2a7afa746ce52c71a676ba23ce), on branch `fix/plugin-screensaver-black-flash`. On October 1, 2026, GitHub rejected upstream PR creation: [Kiosk Satellite restricts new pull requests](https://github.com/jxlarrea/kiosk-satellite/pulls), and the repository API reports `has_pull_requests: false`. No upstream PR was created. The maintainer must allow submission or accept the patch through another channel.
+
 [Download the patch](patches/kiosk-satellite-retain-inline-webview.patch). It applies to Kiosk Satellite commit `15dd10e971efa0ada0e206b813aaa687ce19a91d`.
 
 The patch retains the native WebView for inline HTML updates. Its outer document creates a hidden replacement iframe and retains the displayed iframe until the new one has loaded and reached two animation frames. It then reveals the replacement and retires the old frame. Rapid updates discard superseded frames. No JavaScript bridge or network access is added, and the plugin iframe retains its `allow-scripts` sandbox without same-origin access. Asset entry/origin/options changes still recreate the document. A new inline publication can recreate a crashed renderer.

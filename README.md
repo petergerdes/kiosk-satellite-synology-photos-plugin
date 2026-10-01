@@ -44,12 +44,19 @@ Short links and QuickConnect landing pages are not resolved automatically. Open 
 | Setting | Default | Behavior |
 | --- | --- | --- |
 | Time per photo | 30 seconds | Choose 5–300 seconds. |
-| Shuffle photos | On | Randomize each pass; avoid repeating the last photo immediately at the next pass. |
+| Photo order | Shuffle | Choose **Shuffle**, **Oldest first**, or **Newest first**, using the date each photo was taken. Shuffle avoids repeating the last photo immediately at the next pass. |
+| Transition | Fade | Choose **None**, **Fade**, or **Slide** between photos. |
+| Transition duration | 1 second | Choose 0.2–3 seconds for fades and slides. |
+| Photo motion | None | Choose **Ken Burns** for a slow pan and zoom while each photo is displayed. Works with any transition. |
 | Photo layout | Fit whole photo | Keep the entire photo on black, or choose **Fill screen** to crop the edges. |
 | Check for album changes | 15 minutes | Refresh the album list every 1–120 minutes while the slideshow is active. |
 | Reconnect and refresh album | Action | Recheck access and load a fresh photo immediately. Assign it to a gesture, drawer shortcut, or Home Assistant button through KS if desired. |
 
 The slideshow advances and checks for album changes while the screensaver is active and the screen is on. Kiosk Satellite keeps control of idle activation, schedules, brightness, wake detection, touch dismissal, widgets, and Now Playing layout. Photos adapt to the available space, including portrait screens.
+
+For a gentle slideshow, choose **Fade** with **Ken Burns**. For still photos that change immediately, set both **Transition** and **Photo motion** to **None**. Ken Burns zooms slightly into each photo, so some edges may be cropped even with **Fit whole photo**. Effects respect the display's reduced-motion preference when available.
+
+When updating from 0.1.0, **Photo order** replaces the **Shuffle photos** toggle and starts at **Shuffle**. Choose **Oldest first** to keep the previous non-shuffled behavior. Your album connection and other compatible settings are retained.
 
 Live Photos are displayed as still images; videos are skipped. The slideshow uses Synology-generated previews, including previews for formats such as HEIC. Photos are resized and compressed when needed, up to 1920 pixels on the longest side. Albums must contain fewer than 50,000 total items.
 

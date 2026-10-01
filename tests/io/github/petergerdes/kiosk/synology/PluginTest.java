@@ -34,17 +34,92 @@ public final class PluginTest {
     static final String PASSWORD = "secret &+é=";
 
     public static void main(String[] arguments) throws Exception {
+        if (arguments.length == 2 && "--preview".equals(arguments[0])) {
+            previews(Paths.get(arguments[1]));
+            return;
+        }
         if (arguments.length == 1) {
             liveNas(Paths.get(arguments[0]));
             return;
         }
         linksAndRenderer();
         imageBudget();
+        orderAndEffects();
         try (Nas nas = new Nas()) {
             protocol(nas);
             lifecycle(nas);
         }
         System.out.println("Synology protocol, renderer and lifecycle checks passed.");
+    }
+
+    static void orderAndEffects() {
+        SynologyClient.Photo first = new SynologyClient.Photo(1, "one");
+        SynologyClient.Photo second = new SynologyClient.Photo(2, "two");
+        SynologyClient.Photo third = new SynologyClient.Photo(3, "three");
+        List<SynologyClient.Photo> photos = new ArrayList<>(Arrays.asList(first, second, third));
+        SynologyPhotosPlugin.orderPhotos(photos, "Oldest first", -1);
+        assert photos.get(0).id == 1 && photos.get(2).id == 3;
+        SynologyPhotosPlugin.orderPhotos(photos, "Newest first", -1);
+        assert photos.get(0).id == 3 && photos.get(2).id == 1;
+        for (int i = 0; i < 50; i++) {
+            SynologyPhotosPlugin.orderPhotos(photos, "Shuffle", 2);
+            assert photos.get(0).id != 2;
+            assert new java.util.HashSet<>(photos).size() == 3;
+        }
+        SynologyPhotosPlugin.orderPhotos(new ArrayList<>(), "Shuffle", -1);
+        SynologyPhotosPlugin.orderPhotos(new ArrayList<>(Collections.singletonList(first)), "Shuffle", 1);
+
+        SynologyClient.Image image = new SynologyClient.Image(JPEG, "image/jpeg");
+        Map<String, Object> settings = settings("");
+        settings.put("transition", "Fade");
+        settings.put("transitionSeconds", 1.4);
+        settings.put("motion", "Ken Burns");
+        String fade = PhotoHtml.photo(image, image, settings);
+        assert fade.contains("class=\"fade motion\"") && fade.contains("class=\"previous\"");
+        assert fade.contains("--transition:1.4s;--interval:5.0s");
+        assert fade.contains("images[i].addEventListener('load'") && fade.contains("images[i].naturalWidth");
+        settings.put("transition", "Slide");
+        assert PhotoHtml.photo(image, image, settings).contains("class=\"slide motion\"");
+        settings.put("transition", "None");
+        assert !PhotoHtml.photo(image, image, settings).contains("class=\"previous\"");
+        settings.put("transition", "<script>");
+        settings.put("transitionSeconds", Double.NaN);
+        assert PhotoHtml.photo(image, image, settings).contains("class=\"fade motion\"");
+        assert PhotoHtml.photo(image, image, settings).contains("--transition:1.0s");
+        SynologyClient.Image max = new SynologyClient.Image(new byte[PhotoHtml.MAX_IMAGE_BYTES], "image/jpeg");
+        assert PhotoHtml.photo(max, max, settings).getBytes(StandardCharsets.UTF_8).length < 524288 : "Two-photo transition exceeds KS limit";
+    }
+
+    static void previews(Path folder) throws Exception {
+        Files.createDirectories(folder);
+        SynologyClient.Image first = illustration(false), second = illustration(true);
+        Map<String, Object> settings = settings("");
+        settings.put("transitionSeconds", 2);
+        settings.put("motion", "Ken Burns");
+        for (String effect : Arrays.asList("None", "Fade", "Slide")) {
+            settings.put("transition", effect);
+            Files.write(folder.resolve(effect.toLowerCase() + ".html"),
+                PhotoHtml.photo(first, second, settings).getBytes(StandardCharsets.UTF_8));
+        }
+        System.out.println("Synthetic transition previews generated.");
+    }
+
+    static SynologyClient.Image illustration(boolean second) throws Exception {
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(1200, 800, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        java.awt.Graphics2D graphics = image.createGraphics();
+        graphics.setPaint(new java.awt.GradientPaint(0, 0, new java.awt.Color(second ? 0xD99666 : 0x386B85),
+            0, 800, new java.awt.Color(second ? 0x453849 : 0xA6C4C2)));
+        graphics.fillRect(0, 0, 1200, 800);
+        graphics.setColor(new java.awt.Color(second ? 0xF5D89D : 0xE9E6CB));
+        graphics.fillOval(second ? 820 : 200, 120, 120, 120);
+        graphics.setColor(new java.awt.Color(second ? 0x594453 : 0x315B5A));
+        graphics.fillPolygon(new int[]{0, 300, 600, 950, 1200, 1200, 0}, new int[]{550, 320, 620, 380, 600, 800, 800}, 7);
+        graphics.setColor(new java.awt.Color(second ? 0x302B36 : 0x213C3B));
+        graphics.fillPolygon(new int[]{0, 350, 650, 1000, 1200, 1200, 0}, new int[]{700, 580, 750, 550, 700, 800, 800}, 7);
+        graphics.dispose();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(image, "jpeg", out);
+        return PhotoEncoder.fit(out.toByteArray(), "image/jpeg");
     }
 
     static byte[] jpegFixture() {
@@ -121,7 +196,7 @@ public final class PluginTest {
             client.login();
             List<SynologyClient.Photo> photos = client.listPhotos();
             assert photos.size() == 2 : "Pagination must include the second page and exclude videos";
-        assert photos.get(1).id == 2 : "Live Photos must be shown as stills";
+            assert photos.get(1).id == 2 : "Live Photos must be shown as stills";
             SynologyClient.Image image = client.image(photos.get(0));
             assert image.mime.equals("image/jpeg") && Arrays.equals(image.bytes, JPEG);
             assert nas.sizes.contains("xl") && nas.sizes.contains("m") : "Oversized XL must fall back";
@@ -156,6 +231,7 @@ public final class PluginTest {
         plugin.onEvent("ks.screensaver.state", Collections.singletonMap("active", true));
         plugin.onEvent("ks.screensaver.view", Collections.singletonMap("view", SynologyPhotosPlugin.MODE));
         await(() -> host.photos.get() > count, 6500);
+        assert host.html.contains("class=\"previous\"") : "Fade must carry the previously displayed photo";
         plugin.onEvent("ks.screen.state", Collections.singletonMap("on", false));
         int pausedCount = host.photos.get();
         Thread.sleep(5500);
@@ -173,6 +249,15 @@ public final class PluginTest {
         await(() -> !host.error && host.html.contains("data:image/jpeg"), 5000);
         assert nas.lastImageId.equals("2") : "A broken first image must not starve the album";
         nas.brokenFirst = false;
+
+        Map<String, Object> newest = new HashMap<>(config);
+        newest.put("order", "Newest first");
+        newest.put("transition", "None");
+        newest.put("motion", "Ken Burns");
+        plugin.configure(newest);
+        await(() -> !host.error && host.html.contains("data:image/jpeg"), 5000);
+        assert nas.lastImageId.equals("2") : "Newest-first setting did not select the latest photo";
+        assert host.html.contains("class=\"none motion\"") && !host.html.contains("class=\"previous\"");
 
         // A delayed response must be cancelled without publishing into a new configuration.
         nas.slowLogin = true;
@@ -202,7 +287,8 @@ public final class PluginTest {
     static Map<String, Object> settings(String link) {
         Map<String, Object> settings = new HashMap<>();
         settings.put("albumUrl", link); settings.put("albumPassword", PASSWORD);
-        settings.put("shuffle", false); settings.put("intervalSeconds", 5);
+        settings.put("order", "Oldest first"); settings.put("intervalSeconds", 5);
+        settings.put("transition", "Fade"); settings.put("motion", "None");
         settings.put("refreshMinutes", 15); settings.put("fit", "Fit whole photo");
         return settings;
     }

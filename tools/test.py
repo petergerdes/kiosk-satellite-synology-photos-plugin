@@ -12,6 +12,7 @@ import urllib.request
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--live-config', type=Path, help='Private JSON file with albumUrl and albumPassword for a live NAS check')
+parser.add_argument('--preview', action='store_true', help='Generate synthetic transition previews in .cache/preview')
 args = parser.parse_args()
 # Android provides org.json at runtime. This pinned jar is for JVM tests only.
 json_jar = root / '.cache/json-20240303.jar'
@@ -35,6 +36,9 @@ with tempfile.TemporaryDirectory(prefix='synology-plugin-test-') as directory:
     subprocess.run([tool('java'), '-ea', '-cp', os.pathsep.join([directory, str(json_jar)]),
                     'io.github.petergerdes.kiosk.synology.PluginTest',
                     *([str(args.live_config.resolve())] if args.live_config else [])], check=True)
+    if args.preview:
+        subprocess.run([tool('java'), '-cp', os.pathsep.join([directory, str(json_jar)]),
+                        'io.github.petergerdes.kiosk.synology.PluginTest', '--preview', str(root / '.cache/preview')], check=True)
 
 for check in ['test_android_sdk.py', 'test_plugin_manifest.py', 'test_plugin_assets.py']:
     subprocess.run([sys.executable, str(root / 'tools' / check)], check=True)

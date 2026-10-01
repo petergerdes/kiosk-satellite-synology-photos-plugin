@@ -128,10 +128,19 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
         return Double.isFinite(number) ? (int) Math.max(min, Math.min(max, number)) : fallback;
     }
 
+    /** NAS listing is already oldest-to-newest by date taken. */
+    static void orderPhotos(List<SynologyClient.Photo> photos, String order, long lastPhoto) {
+        if ("Newest first".equals(order)) Collections.reverse(photos);
+        else if ("Shuffle".equals(order)) {
+            Collections.shuffle(photos);
+            if (photos.size() > 1 && photos.get(0).id == lastPhoto) Collections.swap(photos, 0, 1);
+        }
+    }
+
     private final class Session {
         final SynologyClient client;
-        final boolean shuffle;
-        final boolean fill;
+        final String photoOrder;
+        final Map<String, Object> renderSettings;
         final long interval;
         final long refresh;
         List<SynologyClient.Photo> photos = new ArrayList<>();
@@ -143,11 +152,13 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
         long retryAt;
         boolean reconnect = true;
         boolean hasPhoto;
+        boolean wasVisible;
+        SynologyClient.Image previousImage;
 
         Session(Map<String, Object> settings) {
             client = new SynologyClient(string(settings, "albumUrl"), string(settings, "albumPassword"));
-            shuffle = !Boolean.FALSE.equals(settings.get("shuffle"));
-            fill = "Fill screen".equals(string(settings, "fit"));
+            photoOrder = settings.get("order") instanceof String ? (String) settings.get("order") : "Shuffle";
+            renderSettings = new HashMap<>(settings);
             interval = TimeUnit.SECONDS.toNanos(number(settings, "intervalSeconds", 30, 5, 300));
             refresh = TimeUnit.MINUTES.toNanos(number(settings, "refreshMinutes", 15, 1, 120));
         }
@@ -155,7 +166,10 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
         void tick() {
             synchronized (SynologyPhotosPlugin.this) { if (session != this || host == null) return; }
             long now = System.nanoTime();
-            if (now < retryAt || (hasPhoto && !visible())) return;
+            boolean showing = visible();
+            if (hasPhoto && !showing) { wasVisible = false; return; }
+            if (hasPhoto && !wasVisible) { nextSlide = now + interval; wasVisible = true; }
+            if (now < retryAt) return;
             boolean updating = reconnect || now >= nextRefresh;
             try {
                 if (updating) {
@@ -164,7 +178,7 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
                     if (updated.isEmpty()) throw new java.io.IOException("No photos with thumbnails found. Add photos to this album and let Synology finish indexing.");
                     photos = updated;
                     index = 0;
-                    order();
+                    orderPhotos(photos, photoOrder, lastPhoto);
                     reconnect = false;
                     nextRefresh = System.nanoTime() + refresh;
                     failures = 0;
@@ -174,18 +188,20 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
                 SynologyClient.Photo photo = photos.get(index++);
                 if (index == photos.size()) { index = 0; }
                 SynologyClient.Image image = client.image(photo);
-                String html = PhotoHtml.photo(image.bytes, image.mime, fill);
+                String html = PhotoHtml.photo(previousImage, image, renderSettings);
                 synchronized (SynologyPhotosPlugin.this) {
                     if (session != this || host == null) return;
                     host.publishScreensaver(KEY, "Album", html);
                     status("Connected · " + photos.size() + " photos. Select Album (Synology Photos) in Screensaver mode.", false);
                 }
                 lastPhoto = photo.id;
+                previousImage = image;
                 hasPhoto = true;
+                wasVisible = showing;
                 failures = 0;
                 retryAt = 0;
                 nextSlide = System.nanoTime() + interval;
-                if (index == 0) order();
+                if (index == 0 && "Shuffle".equals(photoOrder)) orderPhotos(photos, photoOrder, lastPhoto);
             } catch (Exception error) {
                 synchronized (SynologyPhotosPlugin.this) {
                     if (session != this || host == null || Thread.currentThread().isInterrupted()) return;
@@ -203,12 +219,6 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
                     nextSlide = 0;
                 }
             }
-        }
-
-        private void order() {
-            if (!shuffle) return;
-            Collections.shuffle(photos);
-            if (photos.size() > 1 && photos.get(0).id == lastPhoto) Collections.swap(photos, 0, 1);
         }
     }
 }

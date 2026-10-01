@@ -26,7 +26,7 @@ The JVM test runner downloads a pinned `org.json` test-only jar from Maven Centr
 | --- | --- |
 | `src/.../SynologyClient.java` | Sharing-link parsing, sharing login, per-client cookies, paginated photo listing and bounded thumbnail downloads. |
 | `src/.../SynologyPhotosPlugin.java` | KS lifecycle, cancellable worker, visibility events, slideshow ordering, retries and status. |
-| `src/.../PhotoHtml.java` | Responsive, self-contained HTML containing one Base64 image. |
+| `src/.../PhotoHtml.java` | Responsive HTML with embedded photos, fade/slide transitions and Ken Burns motion. |
 | `src/.../PhotoEncoder.java` | Android bitmap decoding, downsampling and JPEG compression to fit the renderer budget. |
 | `kiosk-satellite-plugin.json` | Identity, capabilities, setup settings and refresh command. |
 | `sdk/src/` | Official compile-time SDK interfaces. |
@@ -34,7 +34,11 @@ The JVM test runner downloads a pinned `org.json` test-only jar from Maven Centr
 
 The sharing login uses `SYNO.Core.Sharing.Login` at the Photos application's `webapi/entry.cgi`, without the sharing-routing header. Album calls use the shared-link route's `webapi/entry.cgi`, the `X-SYNO-SHARING` header and the sharing session cookie. Listing uses `SYNO.Foto.Browse.Item` v1 in pages of 100; thumbnails use `SYNO.Foto.Thumbnail` v2. API string arguments are JSON-quoted and then form-encoded in the POST body, including the login password. No account login, writing, downloading originals, or global TLS/cookie configuration is implemented.
 
-KS blocks external requests inside a screensaver WebView. The worker therefore fetches one thumbnail and publishes inline HTML using `publishScreensaver`. Each network image is limited to 8 MiB. Android's bitmap codec checks dimensions, downsamples when the longest side exceeds 1920 pixels, and tries JPEG quality levels 85, 70, 55 and 40 if needed. Display image data is capped at 380,000 bytes so Base64 plus markup stays below KS's 512 KiB HTML limit. There is no local HTTP server or JavaScript bridge. Changing slides recreates the rendering document; this version does not implement crossfades or a persistent offline photo cache.
+KS blocks external requests inside a screensaver WebView. The worker therefore fetches thumbnails and publishes inline HTML using `publishScreensaver`. Each network image is limited to 8 MiB. Android's bitmap codec checks dimensions, downsamples when the longest side exceeds 1920 pixels, and tries JPEG quality levels 85, 70, 55 and 40 if needed. Each display image is capped at 190,000 bytes. Two images plus Base64 and markup stay below KS's 512 KiB HTML limit.
+
+KS recreates the document on every publication. For fade and slide transitions, the worker includes the previous image and the next image in the new document. CSS animates the incoming layer once both images have loaded; opaque black layer backgrounds prevent a previous landscape photo from showing through a new portrait photo's margins. Ken Burns pans and zooms the incoming image over the configured photo interval. The previous image holds its final motion position, and the renderer respects `prefers-reduced-motion`. Recreating the WebView may still cause a brief flash on some devices. There is no JavaScript bridge, local HTTP server, or persistent offline photo cache.
+
+The NAS provides the list sorted by date taken, oldest first. **Newest first** reverses that list when it is refreshed. **Shuffle** randomizes each pass and prevents an immediate repeat across passes. The `order` select replaces the old `shuffle` boolean, which KS drops on update; the new default is Shuffle. Existing connection, timing and layout settings keep their original keys and types.
 
 All network work runs off the serialized SDK callback worker. Reconfiguration cancels the previous task and disconnects its active request. A session identity check prevents late responses from publishing into a new configuration or a stopped plugin. Screen-off and other known screensaver modes pause rotation. The SDK has no initial active-mode snapshot or foreground event; when enabling an already-active screensaver, the plugin may prepare slides until it receives a view event. The host still owns visibility and input handling.
 
@@ -42,7 +46,16 @@ Keep the plugin ID `synology-photos`, renderer key `album`, and command ID `refr
 
 ## Verification
 
-`python3 tools/test.py` starts a fake NAS on an ephemeral loopback port. It checks URL validation, form encoding (including non-ASCII passwords), sharing cookies and headers, mixed photo/video pagination, oversized thumbnail fallback, renderer size and escaping, setup status, idle/screen-off behavior, retaining the current photo on failure, reconnection, and stale-response cancellation. The upstream build-tool checks also run. CI runs these tests for pushes and pull requests.
+`python3 tools/test.py` starts a fake NAS on an ephemeral loopback port. It checks URL validation, form encoding (including non-ASCII passwords), sharing cookies and headers, mixed photo/video pagination, oversized thumbnail fallback, two-image renderer budgets, photo ordering, effect configuration, setup status, idle/screen-off behavior, retaining the current photo on failure, reconnection, and stale-response cancellation. The upstream build-tool checks also run. CI runs these tests for pushes and pull requests.
+
+Generate synthetic effect previews without using private photos:
+
+```sh
+python3 tools/test.py --preview
+python3 -m http.server 8765 --bind 127.0.0.1 --directory .cache/preview
+```
+
+Open `http://localhost:8765/fade.html`, `slide.html`, or `none.html` to inspect each transition combined with Ken Burns. The preview fixtures are generated with JDK graphics and stay outside the package.
 
 For SDK compatibility with a local application checkout:
 

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "synology-photos",
   "name": "Synology Photos",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": 1,
   "minAndroidSdk": 24,
   "entryClass": "io.github.petergerdes.kiosk.synology.SynologyPhotosPlugin",
@@ -43,12 +43,54 @@
       "description": "How long to show each photo while the screensaver is active."
     },
     {
-      "key": "shuffle",
-      "type": "boolean",
-      "title": "Shuffle photos",
-      "default": true,
+      "key": "order",
+      "type": "select",
+      "title": "Photo order",
+      "default": "Shuffle",
+      "options": [
+        "Shuffle",
+        "Oldest first",
+        "Newest first"
+      ],
       "group": "Slideshow",
-      "description": "Show every usable photo once per pass in random order. Turn off to use oldest-to-newest order."
+      "description": "Choose random order, oldest-to-newest, or newest-to-oldest, using the date each photo was taken."
+    },
+    {
+      "key": "transition",
+      "type": "select",
+      "title": "Transition",
+      "default": "Fade",
+      "options": [
+        "None",
+        "Fade",
+        "Slide"
+      ],
+      "group": "Slideshow",
+      "description": "Choose how the next photo appears: immediately, fade over the previous photo, or slide in from the right."
+    },
+    {
+      "key": "transitionSeconds",
+      "type": "number",
+      "title": "Transition duration",
+      "default": 1,
+      "min": 0.2,
+      "max": 3,
+      "step": 0.2,
+      "unit": "s",
+      "group": "Slideshow",
+      "description": "How long a fade or slide takes. Has no effect when Transition is None."
+    },
+    {
+      "key": "motion",
+      "type": "select",
+      "title": "Photo motion",
+      "default": "None",
+      "options": [
+        "None",
+        "Ken Burns"
+      ],
+      "group": "Slideshow",
+      "description": "Ken Burns slowly pans and zooms each photo while it is displayed. Can be combined with any transition."
     },
     {
       "key": "fit",

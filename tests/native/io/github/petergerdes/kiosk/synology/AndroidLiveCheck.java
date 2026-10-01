@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import org.json.JSONObject;
 
 /** Run using app_process on a developer emulator; exercises the real Android codec. */
@@ -25,9 +27,13 @@ public final class AndroidLiveCheck {
             List<SynologyClient.Photo> photos = client.listPhotos();
             if (photos.isEmpty()) throw new AssertionError("No live album photos");
             int count = 0, max = 0;
+            SynologyClient.Image previous = null;
+            Map<String, Object> settings = new HashMap<>();
+            settings.put("transition", "Fade");
+            settings.put("motion", "Ken Burns");
             for (SynologyClient.Photo photo : photos) {
                 SynologyClient.Image image = client.image(photo);
-                String html = PhotoHtml.photo(image.bytes, image.mime, false);
+                String html = PhotoHtml.photo(previous, image, settings);
                 if (html.getBytes(StandardCharsets.UTF_8).length > 524288) throw new AssertionError("HTML budget exceeded");
                 BitmapFactory.Options bounds = new BitmapFactory.Options();
                 bounds.inJustDecodeBounds = true;
@@ -35,10 +41,11 @@ public final class AndroidLiveCheck {
                 if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || Math.max(bounds.outWidth, bounds.outHeight) > 1920) {
                     throw new AssertionError("Invalid or oversized display image");
                 }
-                if (count == 0) try (OutputStream out = new FileOutputStream(args[1])) {
+                if (count == 0 || count == 1) try (OutputStream out = new FileOutputStream(args[1])) {
                     out.write(html.getBytes(StandardCharsets.UTF_8));
                 }
                 count++;
+                previous = image;
                 max = Math.max(max, image.bytes.length);
             }
             System.out.println("Android live check passed: " + count + " photos fetched and encoded; largest display image " + max + " bytes.");

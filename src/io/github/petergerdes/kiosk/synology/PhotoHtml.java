@@ -5,9 +5,14 @@ import android.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 
-/** Embed both sides of a transition: KS recreates the document on each slide. */
+/** Embed both sides of a transition within KS's 512 KiB document limit. */
 final class PhotoHtml {
-    static final int MAX_IMAGE_BYTES = 190_000;
+    static final int MAX_IMAGE_BYTES = 380_000;
+    static final int TRANSITION_IMAGE_BYTES = 300_000;
+
+    static int imageBudget(Map<String, Object> settings) {
+        return "None".equals(settings.get("transition")) ? MAX_IMAGE_BYTES : TRANSITION_IMAGE_BYTES;
+    }
 
     static String photo(byte[] bytes, String mime, boolean fill) {
         return photo(null, new SynologyClient.Image(bytes, mime),
@@ -17,6 +22,8 @@ final class PhotoHtml {
     static String photo(SynologyClient.Image previous, SynologyClient.Image image, Map<String, Object> settings) {
         String transition = "Slide".equals(settings.get("transition")) ? "slide"
             : "None".equals(settings.get("transition")) ? "none" : "fade";
+        if ((long) image.bytes.length + (previous == null || "none".equals(transition) ? 0 : previous.bytes.length)
+                > MAX_IMAGE_BYTES) throw new IllegalArgumentException("Photos exceed renderer budget");
         boolean motion = "Ken Burns".equals(settings.get("motion"));
         double duration = number(settings.get("transitionSeconds"), 1, 0.2, 3);
         double interval = number(settings.get("intervalSeconds"), 30, 5, 300);

@@ -187,12 +187,17 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
                 if (hasPhoto && now < nextSlide) return;
                 SynologyClient.Photo photo = photos.get(index++);
                 if (index == photos.size()) { index = 0; }
-                SynologyClient.Image image = client.image(photo);
-                String html = PhotoHtml.photo(previousImage, image, renderSettings);
+                SynologyClient.Image image = client.image(photo, PhotoHtml.imageBudget(renderSettings));
+                SynologyClient.Image outgoing = previousImage;
+                if ("None".equals(renderSettings.get("transition"))) outgoing = null;
+                else if (outgoing != null && outgoing.bytes.length + image.bytes.length > PhotoHtml.MAX_IMAGE_BYTES) {
+                    outgoing = PhotoEncoder.fit(outgoing.bytes, outgoing.mime, PhotoHtml.MAX_IMAGE_BYTES - image.bytes.length);
+                }
+                String html = PhotoHtml.photo(outgoing, image, renderSettings);
                 synchronized (SynologyPhotosPlugin.this) {
                     if (session != this || host == null) return;
                     host.publishScreensaver(KEY, "Album", html);
-                    status("Connected · " + photos.size() + " photos. Select Album (Synology Photos) in Screensaver mode.", false);
+                    status("Connected · " + photos.size() + " photos · " + image.width + " × " + image.height + " px", false);
                 }
                 lastPhoto = photo.id;
                 previousImage = image;

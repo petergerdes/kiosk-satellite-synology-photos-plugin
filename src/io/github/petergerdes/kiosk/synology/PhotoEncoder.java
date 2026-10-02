@@ -8,14 +8,19 @@ import java.io.IOException;
 
 /** Keep XL detail within KS's HTML limit using Android's built-in image codec. */
 final class PhotoEncoder {
-    @SuppressWarnings("deprecation") // WEBP is available on every supported Android version (API 24+).
     static SynologyClient.Image fit(byte[] bytes, String mime) throws IOException {
+        return fit(bytes, mime, PhotoHtml.MAX_IMAGE_BYTES);
+    }
+
+    @SuppressWarnings("deprecation") // WEBP is available on every supported Android version (API 24+).
+    static SynologyClient.Image fit(byte[] bytes, String mime, int budget) throws IOException {
+        if (budget <= 0 || budget > PhotoHtml.MAX_IMAGE_BYTES) throw new IllegalArgumentException("Invalid photo budget");
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
         if (options.outWidth <= 0 || options.outHeight <= 0) throw new IOException("Synology returned an invalid thumbnail.");
-        if (bytes.length <= PhotoHtml.MAX_IMAGE_BYTES && Math.max(options.outWidth, options.outHeight) <= 1920) {
-            return new SynologyClient.Image(bytes, mime);
+        if (bytes.length <= budget && Math.max(options.outWidth, options.outHeight) <= 1920) {
+            return new SynologyClient.Image(bytes, mime, options.outWidth, options.outHeight);
         }
         options.inSampleSize = 1;
         int longest = Math.max(options.outWidth, options.outHeight);
@@ -38,8 +43,8 @@ final class PhotoEncoder {
                         encodedMime = "image/jpeg";
                         encoded = bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out);
                     }
-                    if (encoded && out.size() <= PhotoHtml.MAX_IMAGE_BYTES) {
-                        return new SynologyClient.Image(out.toByteArray(), encodedMime);
+                    if (encoded && out.size() <= budget) {
+                        return new SynologyClient.Image(out.toByteArray(), encodedMime, bitmap.getWidth(), bitmap.getHeight());
                     }
                 }
                 if (Math.max(bitmap.getWidth(), bitmap.getHeight()) <= 256) {

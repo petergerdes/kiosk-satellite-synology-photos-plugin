@@ -58,13 +58,13 @@ For a gentle slideshow, choose **Fade** with **Ken Burns**. For still photos tha
 
 When updating from 0.1.0, **Photo order** replaces the **Shuffle photos** toggle and starts at **Shuffle**. Choose **Oldest first** to keep the previous non-shuffled behavior. Your album connection and other compatible settings are retained.
 
-Live Photos are displayed as still images; videos are skipped. The slideshow requests Synology's largest available preview, including previews for formats such as HEIC. Photos retain up to 1920 pixels on the longest side, with high-quality WebP compression and gradual resizing when needed to fit the screensaver. Previews that already fit are displayed unchanged. Albums must contain fewer than 50,000 total items.
+Live Photos are displayed as still images; videos are skipped. The slideshow requests Synology's largest available preview, including previews for formats such as HEIC. Photos retain up to 1920 pixels on the longest side, with high-quality WebP compression and gradual resizing when needed to fit the screensaver. The current photo gets priority within the image budget; the outgoing photo is reduced only when a transition needs more space. With **Transition → None**, the current photo gets the entire budget. Previews that already fit are displayed unchanged. Albums must contain fewer than 50,000 total items.
 
-For the sharpest display, choose **Fit whole photo** and **Photo motion → None** to avoid enlarging cropped or zoomed photos. The source preview's resolution still limits the detail available; this plugin does not download full-resolution originals.
+For the sharpest display, choose **Fit whole photo** and **Photo motion → None** to avoid enlarging cropped or zoomed photos. **Transition → None** allows the most image detail. The plugin status shows the displayed resolution, such as **1707 × 1280 px**. The source preview's resolution still limits the detail available; this plugin does not download full-resolution originals.
 
 ## Troubleshooting
 
-**The screen goes black before a fade or slide.** Kiosk Satellite currently recreates the plugin's WebView for every photo update. Loading the replacement view causes a black gap before the transition starts; its duration depends on the device. This requires a fix in Kiosk Satellite. A proposed host patch and verification steps are available in the [renderer fix guide](docs/host-renderer-fix.md).
+**The screen goes black before a fade or slide.** Update Kiosk Satellite to **2026.10.1 or newer**. Its maintainer fixed the WebView replacement that caused the gap, and the fix has been confirmed on a kiosk. See [issue #782](https://github.com/jxlarrea/kiosk-satellite/issues/782) and the [renderer fix guide](docs/host-renderer-fix.md) for background.
 
 Read the plugin's status in **Plugin Manager → Synology Photos**. The Remote Admin Overview also shows an album status tile.
 
@@ -77,6 +77,7 @@ Read the plugin's status in **Plugin Manager → Synology Photos**. The Remote A
 | HTTPS certificate could not be verified | Use a trusted certificate and its matching hostname. Self-signed or mismatched certificates are not bypassed. HTTP can be used on a trusted local network if the host app permits it, but sends the link, password and photos unencrypted. |
 | Redirect / web page / invalid JSON | Use the final direct Photos URL. Configure the proxy to forward the Photos `webapi/entry.cgi` routes as well as the web UI. API requests do not follow redirects. |
 | No photos with thumbnails | Add photos to the selected album, wait for Synology to finish indexing and thumbnail generation, then run **Reconnect and refresh album**. Video-only albums cannot be displayed. |
+| Photos look pixelated or soft | Update the plugin to 0.2.2 or newer and use **Reconnect and refresh album**. Check the pixel dimensions in the plugin status. **Fit whole photo** and **Photo motion → None** avoid enlargement; **Transition → None** provides the largest image budget. If dimensions remain small, check Synology thumbnail generation and compare the album in Synology Photos. |
 | NAS temporarily unavailable | The last loaded photo remains visible. The plugin retries automatically while the slideshow is active. Use **Reconnect and refresh album** to check immediately. |
 | Screensaver is black / mode is missing | Enable both Plugin Manager and this plugin, confirm it connects, and select **Album (Synology Photos)**. Check your KS build supports plugin screensavers. |
 

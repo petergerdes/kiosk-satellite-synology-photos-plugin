@@ -72,6 +72,7 @@ public final class PluginTest {
         SynologyClient.Image image = new SynologyClient.Image(JPEG, "image/jpeg");
         Map<String, Object> settings = settings("");
         settings.put("transition", "Fade");
+        assert PhotoHtml.imageBudget(settings) == PhotoHtml.TRANSITION_IMAGE_BYTES;
         settings.put("transitionSeconds", 1.4);
         settings.put("motion", "Ken Burns");
         String fade = PhotoHtml.photo(image, image, settings);
@@ -81,13 +82,20 @@ public final class PluginTest {
         settings.put("transition", "Slide");
         assert PhotoHtml.photo(image, image, settings).contains("class=\"slide motion\"");
         settings.put("transition", "None");
+        assert PhotoHtml.imageBudget(settings) == PhotoHtml.MAX_IMAGE_BYTES;
         assert !PhotoHtml.photo(image, image, settings).contains("class=\"previous\"");
         settings.put("transition", "<script>");
         settings.put("transitionSeconds", Double.NaN);
         assert PhotoHtml.photo(image, image, settings).contains("class=\"fade motion\"");
         assert PhotoHtml.photo(image, image, settings).contains("--transition:1.0s");
-        SynologyClient.Image max = new SynologyClient.Image(new byte[PhotoHtml.MAX_IMAGE_BYTES], "image/jpeg");
-        assert PhotoHtml.photo(max, max, settings).getBytes(StandardCharsets.UTF_8).length < 524288 : "Two-photo transition exceeds KS limit";
+        SynologyClient.Image max = new SynologyClient.Image(new byte[PhotoHtml.TRANSITION_IMAGE_BYTES], "image/jpeg");
+        SynologyClient.Image outgoing = new SynologyClient.Image(new byte[PhotoHtml.MAX_IMAGE_BYTES - max.bytes.length], "image/jpeg");
+        assert PhotoHtml.photo(outgoing, max, settings).getBytes(StandardCharsets.UTF_8).length < 524288 : "Two-photo transition exceeds KS limit";
+        try { PhotoHtml.photo(max, max, settings); throw new AssertionError("Accepted oversized pair"); }
+        catch (IllegalArgumentException expected) { }
+        settings.put("transition", "None");
+        assert PhotoHtml.photo(max, new SynologyClient.Image(new byte[PhotoHtml.MAX_IMAGE_BYTES], "image/jpeg"), settings)
+            .getBytes(StandardCharsets.UTF_8).length < 524288;
     }
 
     static void previews(Path folder) throws Exception {
@@ -144,6 +152,9 @@ public final class PluginTest {
         assert decoded != null && Math.max(decoded.getWidth(), decoded.getHeight()) <= 1920;
         assert PhotoHtml.photo(result.bytes, result.mime, false).getBytes(StandardCharsets.UTF_8).length < 524288;
         assert Math.max(decoded.getWidth(), decoded.getHeight()) > 640 : "Detailed XL image collapsed to thumbnail resolution";
+        SynologyClient.Image smaller = PhotoEncoder.fit(result.bytes, result.mime, 80_000);
+        assert smaller.bytes.length <= 80_000 && smaller.width > 0 && smaller.height > 0;
+        assert result.width == decoded.getWidth() && result.height == decoded.getHeight();
 
         java.awt.image.BufferedImage large = new java.awt.image.BufferedImage(2050, 1025, java.awt.image.BufferedImage.TYPE_INT_RGB);
         out.reset();

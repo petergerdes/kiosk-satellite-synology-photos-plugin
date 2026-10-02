@@ -47,8 +47,12 @@ public final class AndroidLiveCheck {
             settings.put("transition", "Fade");
             settings.put("motion", "Ken Burns");
             for (SynologyClient.Photo photo : photos) {
-                SynologyClient.Image image = client.image(photo);
-                String html = PhotoHtml.photo(previous, image, settings);
+                SynologyClient.Image image = client.image(photo, PhotoHtml.imageBudget(settings));
+                SynologyClient.Image outgoing = previous;
+                if (outgoing != null && outgoing.bytes.length + image.bytes.length > PhotoHtml.MAX_IMAGE_BYTES) {
+                    outgoing = PhotoEncoder.fit(outgoing.bytes, outgoing.mime, PhotoHtml.MAX_IMAGE_BYTES - image.bytes.length);
+                }
+                String html = PhotoHtml.photo(outgoing, image, settings);
                 if (html.getBytes(StandardCharsets.UTF_8).length > 524288) throw new AssertionError("HTML budget exceeded");
                 BitmapFactory.Options bounds = new BitmapFactory.Options();
                 bounds.inJustDecodeBounds = true;
@@ -61,6 +65,8 @@ public final class AndroidLiveCheck {
                 maxSide = Math.max(maxSide, side);
                 if (side < 1024) small++;
                 if ("image/webp".equals(image.mime)) webp++;
+                System.out.println("Photo " + (count + 1) + ": " + bounds.outWidth + " × " + bounds.outHeight
+                    + " px, " + image.bytes.length + " bytes; document " + html.getBytes(StandardCharsets.UTF_8).length + " bytes.");
                 if (count == 0 || count == 1) try (OutputStream out = new FileOutputStream(args[1])) {
                     out.write(html.getBytes(StandardCharsets.UTF_8));
                 }
@@ -102,5 +108,11 @@ public final class AndroidLiveCheck {
         Bitmap decoded = BitmapFactory.decodeByteArray(image.bytes, 0, image.bytes.length, new BitmapFactory.Options());
         if (decoded == null) throw new AssertionError("WebP image cannot be fully decoded");
         decoded.recycle();
+        if (noisy) {
+            SynologyClient.Image constrained = PhotoEncoder.fit(original.toByteArray(), "image/png", 190_000);
+            if (image.width <= constrained.width) throw new AssertionError("Larger budget did not retain more detail");
+            SynologyClient.Image outgoing = PhotoEncoder.fit(image.bytes, image.mime, 80_000);
+            if (outgoing.bytes.length > 80_000 || outgoing.width <= 0) throw new AssertionError("Outgoing budget exceeded");
+        }
     }
 }

@@ -1,6 +1,8 @@
 # Black gap before photo transitions
 
-The released plugin's transition works inside its HTML document. Kiosk Satellite destroys that document's native WebView on every `publishScreensaver` update because `_Document` is keyed by the entire renderer map. The replacement WebView starts on black, decodes the previous photo, and then runs the fade to the next photo. This explains the visible sequence of black → previous photo → next photo.
+**Resolved in Kiosk Satellite 2026.10.1.** The maintainer closed [issue #782](https://github.com/jxlarrea/kiosk-satellite/issues/782) after implementing the fix. A kiosk user confirmed the deployed update fixes the fade. Update the host application; the historical proposal and checks below are retained for reference.
+
+The plugin's transition works inside its HTML document. Older Kiosk Satellite versions destroyed that document's native WebView on every `publishScreensaver` update because `_Document` is keyed by the entire renderer map. The replacement WebView starts on black, decodes the previous photo, and then runs the fade to the next photo. This explains the visible sequence of black → previous photo → next photo.
 
 The SDK exposes no method to update a running document. Changing the plugin's CSS, using an asset renderer, or disabling transitions cannot prevent the WebView replacement. This needs an application change; the patch below is **not a plugin update**.
 
@@ -37,4 +39,4 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory .cache/host-renderer-ch
 
 Open `http://localhost:8765/`. The check generates the wrapper from the actual patched Dart document builder. It verifies that the current frame survives loading, the replacement waits for paint, stale updates cannot replace the latest frame, retired frames are removed, and the plugin cannot read the host document. Fixtures use synthetic content and stay outside the plugin package.
 
-These browser checks passed, including the plugin's actual synthetic fade HTML with both images decoded and the fade at its midpoint. The patch also passes Dart formatting and applies cleanly to the referenced upstream commit. Flutter analysis, widget tests, and a full Kiosk Satellite device test have **not** been run: Flutter is not installed in the development environment used for this patch. An upstream build and device verification are required before calling the application fix released.
+These browser checks passed, including the plugin's actual synthetic fade HTML with both images decoded and the fade at its midpoint. The patch also passes Dart formatting and applies cleanly to the referenced upstream commit. Flutter analysis, widget tests, and a full Kiosk Satellite device test have **not** been run: Flutter is not installed in the development environment used for this patch. These limitations apply to our proposed patch. The upstream maintainer subsequently released the application fix, as described above.

@@ -88,6 +88,10 @@ final class SynologyClient implements AutoCloseable {
     }
 
     Image image(Photo photo) throws IOException {
+        return image(photo, PhotoHtml.MAX_IMAGE_BYTES);
+    }
+
+    Image image(Photo photo, int budget) throws IOException {
         IOException last = null;
         for (String size : new String[]{"xl", "m", "sm"}) {
             try {
@@ -95,7 +99,7 @@ final class SynologyClient implements AutoCloseable {
                     "id", String.valueOf(photo.id), "cache_key", photo.cacheKey,
                     "type", "unit", "size", size, "_sharing_id", sharingId), 8 * 1024 * 1024);
                 String mime = imageMime(bytes);
-                if (mime != null) return PhotoEncoder.fit(bytes, mime);
+                if (mime != null) return PhotoEncoder.fit(bytes, mime, budget);
                 throw new IOException("Synology did not return a supported photo thumbnail. Check album access and thumbnail generation.");
             } catch (InterruptedIOException error) { throw error; }
             catch (IOException error) { last = error; }
@@ -213,6 +217,10 @@ final class SynologyClient implements AutoCloseable {
     static final class Image {
         final byte[] bytes;
         final String mime;
-        Image(byte[] bytes, String mime) { this.bytes = bytes; this.mime = mime; }
+        final int width, height;
+        Image(byte[] bytes, String mime) { this(bytes, mime, 0, 0); }
+        Image(byte[] bytes, String mime, int width, int height) {
+            this.bytes = bytes; this.mime = mime; this.width = width; this.height = height;
+        }
     }
 }

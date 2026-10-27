@@ -20,6 +20,11 @@ final class PhotoHtml {
     }
 
     static String photo(SynologyClient.Image previous, SynologyClient.Image image, Map<String, Object> settings) {
+        return photo(previous, image, settings, "", "");
+    }
+
+    static String photo(SynologyClient.Image previous, SynologyClient.Image image, Map<String, Object> settings,
+            String previousLocation, String location) {
         String transition = "Slide".equals(settings.get("transition")) ? "slide"
             : "None".equals(settings.get("transition")) ? "none" : "fade";
         if ((long) image.bytes.length + (previous == null || "none".equals(transition) ? 0 : previous.bytes.length)
@@ -28,10 +33,11 @@ final class PhotoHtml {
         double duration = number(settings.get("transitionSeconds"), 1, 0.2, 3);
         double interval = number(settings.get("intervalSeconds"), 30, 5, 300);
         String outgoing = previous == null || "none".equals(transition) ? ""
-            : "<div class=\"previous\" aria-hidden=\"true\">" + img(previous, "") + "</div>";
+            : "<div class=\"previous\" aria-hidden=\"true\">" + img(previous, "")
+                + location(previousLocation, settings) + "</div>";
         String body = "<main class=\"" + transition + (motion ? " motion" : "") + "\" style=\"--transition:"
             + duration + "s;--interval:" + interval + "s\">" + outgoing
-            + "<div class=\"incoming\">" + img(image, "current") + "</div></main>"
+            + "<div class=\"incoming\">" + img(image, "current") + location(location, settings) + "</div></main>"
             + "<script>const images=document.querySelectorAll('img');"
             + "function start(){for(let i=0;i<images.length;i++)if(!images[i].complete||!images[i].naturalWidth)return;"
             + "document.querySelector('main').classList.add('ready')}"
@@ -52,8 +58,16 @@ final class PhotoHtml {
     }
 
     static String message(String text) {
-        String escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-        return document("<p>" + escaped + "</p>", false);
+        return document("<p>" + escape(text) + "</p>", false);
+    }
+
+    private static String location(String text, Map<String, Object> settings) {
+        return Boolean.TRUE.equals(settings.get("showLocation")) && !text.trim().isEmpty()
+            ? "<div class=\"location\" dir=\"auto\">" + escape(text) + "</div>" : "";
+    }
+
+    private static String escape(String text) {
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     private static String document(String body, boolean fill) {
@@ -64,6 +78,10 @@ final class PhotoHtml {
             + ".previous,.incoming{position:absolute;top:0;left:0;width:100%;height:100%;background:#000}"
             + ".incoming{opacity:0}.ready .incoming{opacity:1}"
             + "img{width:100%;height:100%;object-fit:" + (fill ? "cover" : "contain") + "}"
+            + ".location{position:absolute;left:24px;right:24px;bottom:24px;text-align:left;color:#fff;"
+            + "font:italic 28px/1.3 Georgia,'Times New Roman',serif;text-shadow:0 2px 4px #000,0 0 12px #000;"
+            + "overflow-wrap:break-word;pointer-events:none}"
+            + "@media(max-width:600px){.location{left:16px;right:16px;bottom:16px;font-size:22px}}"
             + ".ready.fade .incoming{animation:fade-in var(--transition) ease-in-out both}"
             + ".ready.slide .incoming{animation:slide-in var(--transition) ease-in-out both}"
             + ".ready.motion .incoming img{animation:ken-burns var(--interval) linear both}"

@@ -34,6 +34,8 @@ The JVM test runner downloads a pinned `org.json` test-only jar from Maven Centr
 
 The sharing login uses `SYNO.Core.Sharing.Login` at the Photos application's `webapi/entry.cgi`, without the sharing-routing header. Album calls use the shared-link route's `webapi/entry.cgi`, the `X-SYNO-SHARING` header and the sharing session cookie. Listing uses `SYNO.Foto.Browse.Item` v1 in pages of 100; thumbnails use `SYNO.Foto.Thumbnail` v2. API string arguments are JSON-quoted and then form-encoded in the POST body, including the login password. No account login, writing, downloading originals, or global TLS/cookie configuration is implemented.
 
+With `showLocation` enabled (default off), listing also requests `additional: ["thumbnail", "address"]`. The label uses the first available city, town, village, county or state, followed by the country, without duplicates. Missing or malformed addresses produce no label. Address field names were checked against [captured Photos API responses](https://github.com/cmeans/mcp-synology/blob/main/tests/modules/photos/fixtures/dsm-7.1-photos-1.3.4.json); availability through a particular sharing link still needs a live NAS check. Labels are capped at 200 characters and HTML-escaped to keep untrusted metadata within the document budget. Each transition layer carries its own label outside the animated image, so Ken Burns does not move the text. No external geocoding or font requests are made.
+
 KS blocks external requests inside a screensaver WebView. The worker therefore fetches thumbnails and publishes inline HTML using `publishScreensaver`. Each network image is limited to 8 MiB. The client requests XL first; M and SM remain fallbacks for unavailable or invalid previews. Android's bitmap codec preserves previews that already fit, otherwise uses sampled decoding with density scaling to retain up to 1920 pixels on the longest side. It tries WebP quality levels 95, 90, 85 and 80, with JPEG fallback if WebP encoding fails. If the image still exceeds the budget, filtered resizing reduces its dimensions by 15% per step rather than immediately switching to a small NAS thumbnail. The combined image budget is 380,000 bytes. Fade and Slide allow up to 300,000 bytes for the incoming photo, leaving at least 80,000 bytes for the outgoing photo. The worker recompresses the outgoing photo only if the pair exceeds the combined budget; it retains the full incoming image for the next slide. Transition None allows the current photo all 380,000 bytes. Base64 and markup stay below KS's 512 KiB HTML limit. The connected status reports the current image dimensions.
 
 KS loads a new document on every publication. Since KS 2026.10.1, it retains the native WebView and displays the old document until the new one has painted. For fade and slide transitions, the worker includes the previous image and the next image in the new document. CSS animates the incoming layer once both images have loaded; opaque black layer backgrounds prevent a previous landscape photo from showing through a new portrait photo's margins. Ken Burns pans and zooms the incoming image over the configured photo interval. The previous image holds its final motion position, and the renderer respects `prefers-reduced-motion`. Older KS versions recreate the WebView and can flash black; update the host to avoid this. There is no JavaScript bridge, local HTTP server, or persistent offline photo cache.
@@ -46,7 +48,7 @@ Keep the plugin ID `synology-photos`, renderer key `album`, and command ID `refr
 
 ## Verification
 
-`python3 tools/test.py` starts a fake NAS on an ephemeral loopback port. It checks URL validation, form encoding (including non-ASCII passwords), sharing cookies and headers, mixed photo/video pagination, oversized thumbnail fallback, two-image renderer budgets, photo ordering, effect configuration, setup status, idle/screen-off behavior, retaining the current photo on failure, reconnection, and stale-response cancellation. The upstream build-tool checks also run. CI runs these tests for pushes and pull requests.
+`python3 tools/test.py` starts a fake NAS on an ephemeral loopback port. It checks URL validation, form encoding (including non-ASCII passwords), sharing cookies and headers, mixed photo/video pagination, oversized thumbnail fallback, two-image renderer budgets, optional location metadata and escaped labels, photo ordering, effect configuration, setup status, idle/screen-off behavior, retaining the current photo on failure, reconnection, and stale-response cancellation. The upstream build-tool checks also run. CI runs these tests for pushes and pull requests.
 
 Generate synthetic effect previews without using private photos:
 
@@ -55,7 +57,7 @@ python3 tools/test.py --preview
 python3 -m http.server 8765 --bind 127.0.0.1 --directory .cache/preview
 ```
 
-Open `http://localhost:8765/fade.html`, `slide.html`, or `none.html` to inspect each transition combined with Ken Burns. The preview fixtures are generated with JDK graphics and stay outside the package.
+Open `http://localhost:8765/fade.html`, `slide.html`, or `none.html` to inspect each transition combined with Ken Burns and location labels. The preview fixtures are generated with JDK graphics and stay outside the package.
 
 For SDK compatibility with a local application checkout:
 

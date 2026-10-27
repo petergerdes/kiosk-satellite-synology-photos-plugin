@@ -49,12 +49,15 @@ Short links and QuickConnect landing pages are not resolved automatically. Open 
 | Transition duration | 1 second | Choose 0.2–3 seconds for fades and slides. |
 | Photo motion | None | Choose **Ken Burns** for a slow pan and zoom while each photo is displayed. Works with any transition. |
 | Photo layout | Fit whole photo | Keep the entire photo on black, or choose **Fill screen** to crop the edges. |
+| Show photo location | Off | Show the photo's location in the bottom-left corner in italic Georgia, with a serif fallback when Georgia is unavailable. Photos without a location have no label. |
 | Check for album changes | 15 minutes | Refresh the album list every 1–120 minutes while the slideshow is active. |
 | Reconnect and refresh album | Action | Recheck access and load a fresh photo immediately. Assign it to a gesture, drawer shortcut, or Home Assistant button through KS if desired. |
 
 The slideshow advances and checks for album changes while the screensaver is active and the screen is on. Kiosk Satellite keeps control of idle activation, schedules, brightness, wake detection, touch dismissal, widgets, and Now Playing layout. Photos adapt to the available space, including portrait screens.
 
 For a gentle slideshow, choose **Fade** with **Ken Burns**. For still photos that change immediately, set both **Transition** and **Photo motion** to **None**. Ken Burns zooms slightly into each photo, so some edges may be cropped even with **Fit whole photo**. Effects respect the display's reduced-motion preference when available.
+
+Enable **Show photo location** in **Plugin Manager → Synology Photos → Slideshow** to display a place and country, such as “Amsterdam, Netherlands”. The label uses the address supplied by Synology Photos; the plugin does not send coordinates to an external lookup service. If the shared album does not expose location metadata, the photo displays without a label. The text stays still during Ken Burns motion and follows its photo during fades and slides.
 
 When updating from 0.1.0, **Photo order** replaces the **Shuffle photos** toggle and starts at **Shuffle**. Choose **Oldest first** to keep the previous non-shuffled behavior. Your album connection and other compatible settings are retained.
 

@@ -105,6 +105,14 @@
       "description": "Fit keeps the entire photo on a black background. Fill crops the edges to fill the available space."
     },
     {
+      "key": "showLocation",
+      "type": "boolean",
+      "title": "Show photo location",
+      "default": false,
+      "group": "Slideshow",
+      "description": "Show the photo's location in the bottom-left corner in italic Georgia (or a similar serif font). Hidden when Synology Photos provides no location."
+    },
+    {
       "key": "refreshMinutes",
       "type": "number",
       "title": "Check for album changes",

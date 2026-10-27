@@ -43,6 +43,7 @@ public final class PluginTest {
             return;
         }
         linksAndRenderer();
+        locationLabels();
         imageBudget();
         orderAndEffects();
         try (Nas nas = new Nas()) {
@@ -104,12 +105,64 @@ public final class PluginTest {
         Map<String, Object> settings = settings("");
         settings.put("transitionSeconds", 2);
         settings.put("motion", "Ken Burns");
+        settings.put("showLocation", true);
         for (String effect : Arrays.asList("None", "Fade", "Slide")) {
             settings.put("transition", effect);
             Files.write(folder.resolve(effect.toLowerCase() + ".html"),
-                PhotoHtml.photo(first, second, settings).getBytes(StandardCharsets.UTF_8));
+                PhotoHtml.photo(first, second, settings, "Amsterdam, Netherlands", "Lisbon, Portugal")
+                    .getBytes(StandardCharsets.UTF_8));
         }
         System.out.println("Synthetic transition previews generated.");
+    }
+
+    static void locationLabels() {
+        assert SynologyClient.location(null).isEmpty();
+        assert SynologyClient.location(new JSONObject()).isEmpty();
+        JSONObject address = new JSONObject().put("city", " Amsterdam ").put("country", " Netherlands ");
+        assert SynologyClient.location(address).equals("Amsterdam, Netherlands");
+        address.put("city", "").put("town", "Sintra").put("country", "Portugal");
+        assert SynologyClient.location(address).equals("Sintra, Portugal");
+        address.remove("town");
+        address.put("village", "Giethoorn").put("country", "Netherlands");
+        assert SynologyClient.location(address).equals("Giethoorn, Netherlands");
+        address.remove("village");
+        address.put("county", "Teton County").put("state", "Wyoming").put("country", "United States");
+        assert SynologyClient.location(address).equals("Teton County, United States");
+        address.remove("county");
+        assert SynologyClient.location(address).equals("Wyoming, United States");
+        address.remove("state");
+        assert SynologyClient.location(address).equals("United States");
+        address.put("city", "United States");
+        assert SynologyClient.location(address).equals("United States");
+        address.put("country", JSONObject.NULL).put("city", 123);
+        assert SynologyClient.location(address).isEmpty() : "Invalid address fields must not become labels";
+        address.put("city", "Paris");
+        assert SynologyClient.location(address).equals("Paris");
+        String longName = String.join("", Collections.nCopies(5000, "<&é"));
+        String bounded = SynologyClient.location(new JSONObject().put("city", longName));
+        assert bounded.length() <= 200;
+
+        SynologyClient.Image image = new SynologyClient.Image(JPEG, "image/jpeg");
+        Map<String, Object> settings = settings("");
+        assert !PhotoHtml.photo(image, image, settings, "Old place", "New place").contains("class=\"location\"");
+        settings.put("showLocation", false);
+        assert !PhotoHtml.photo(image, image, settings, "Old place", "New place").contains("class=\"location\"");
+        settings.put("showLocation", true);
+        String html = PhotoHtml.photo(image, image, settings, "Old place", "<script>alert('x')</script>&");
+        assert html.contains("&lt;script&gt;alert('x')&lt;/script&gt;&amp;") && !html.contains("<script>alert");
+        assert html.indexOf("Old place") < html.indexOf("class=\"incoming\"");
+        assert html.indexOf("&lt;script&gt;") > html.indexOf("class=\"incoming\"");
+        assert !PhotoHtml.photo(null, image, settings, "Old place", " ").contains("class=\"location\"");
+        settings.put("transition", "None");
+        html = PhotoHtml.photo(image, image, settings, "Old place", "Paris");
+        assert !html.contains("Old place") && html.contains("Paris");
+        SynologyClient.Image max = new SynologyClient.Image(new byte[PhotoHtml.MAX_IMAGE_BYTES], "image/jpeg");
+        assert PhotoHtml.photo(null, max, settings, "", bounded).getBytes(StandardCharsets.UTF_8).length < 524288;
+        settings.put("transition", "Fade");
+        SynologyClient.Image incoming = new SynologyClient.Image(new byte[PhotoHtml.TRANSITION_IMAGE_BYTES], "image/jpeg");
+        SynologyClient.Image outgoing = new SynologyClient.Image(new byte[PhotoHtml.MAX_IMAGE_BYTES - incoming.bytes.length], "image/jpeg");
+        assert PhotoHtml.photo(outgoing, incoming, settings, bounded, bounded)
+            .getBytes(StandardCharsets.UTF_8).length < 524288 : "Location labels must fit the renderer budget";
     }
 
     static SynologyClient.Image illustration(boolean second) throws Exception {
@@ -217,6 +270,11 @@ public final class PluginTest {
             List<SynologyClient.Photo> photos = client.listPhotos();
             assert photos.size() == 2 : "Pagination must include the second page and exclude videos";
             assert photos.get(1).id == 2 : "Live Photos must be shown as stills";
+            assert nas.lastAdditional.equals("[\"thumbnail\"]") && photos.get(0).location.isEmpty();
+            photos = client.listPhotos(true);
+            assert nas.lastAdditional.equals("[\"thumbnail\",\"address\"]");
+            assert photos.get(0).location.equals("Amsterdam, Netherlands");
+            assert photos.get(1).location.isEmpty() : "Missing location must not exclude photos";
             SynologyClient.Image image = client.image(photos.get(0));
             assert image.mime.equals("image/jpeg") && Arrays.equals(image.bytes, JPEG);
             assert nas.sizes.contains("xl") && nas.sizes.contains("m") : "Oversized XL must fall back";
@@ -245,6 +303,11 @@ public final class PluginTest {
         plugin.configure(config);
         await(() -> host.html.contains("data:image/jpeg"), 5000);
         assert host.status.contains("2 photos") && !host.error;
+        assert !host.html.contains("class=\"location\"");
+        Map<String, Object> withLocation = new HashMap<>(config);
+        withLocation.put("showLocation", true);
+        plugin.configure(withLocation);
+        await(() -> host.html.contains("Amsterdam, Netherlands"), 5000);
         final int count = host.photos.get();
         Thread.sleep(1200);
         assert host.photos.get() == count : "Idle screensaver must not advance";
@@ -252,6 +315,8 @@ public final class PluginTest {
         plugin.onEvent("ks.screensaver.view", Collections.singletonMap("view", SynologyPhotosPlugin.MODE));
         await(() -> host.photos.get() > count, 6500);
         assert host.html.contains("class=\"previous\"") : "Fade must carry the previously displayed photo";
+        assert host.html.indexOf("Amsterdam, Netherlands") < host.html.indexOf("class=\"incoming\"")
+            : "The location must stay with the outgoing photo when the next photo has none";
         plugin.onEvent("ks.screen.state", Collections.singletonMap("on", false));
         int pausedCount = host.photos.get();
         Thread.sleep(5500);
@@ -278,6 +343,8 @@ public final class PluginTest {
         await(() -> !host.error && host.html.contains("data:image/jpeg"), 5000);
         assert nas.lastImageId.equals("2") : "Newest-first setting did not select the latest photo";
         assert host.html.contains("class=\"none motion\"") && !host.html.contains("class=\"previous\"");
+        assert !host.html.contains("class=\"location\"") && nas.lastAdditional.equals("[\"thumbnail\"]")
+            : "Turning location off must remove its label and stop requesting address metadata";
 
         // A delayed response must be cancelled without publishing into a new configuration.
         nas.slowLogin = true;
@@ -348,7 +415,7 @@ public final class PluginTest {
         final List<String> sizes = new CopyOnWriteArrayList<>();
         volatile CountDownLatch started = new CountDownLatch(1), release = new CountDownLatch(1);
         volatile boolean redirect, failImages, slowLogin, brokenFirst;
-        volatile String lastImageId = "";
+        volatile String lastImageId = "", lastAdditional = "";
         Nas() throws IOException {
             server.createContext("/", this::handle);
             server.setExecutor(workers);
@@ -380,7 +447,9 @@ public final class PluginTest {
                 if (cookie == null || !cookie.contains("sharing_sid=test-session")) violations.add("Missing session cookie");
                 if (!"album-token".equals(exchange.getRequestHeaders().getFirst("X-SYNO-SHARING"))) violations.add("Missing sharing header");
                 if ("SYNO.Foto.Browse.Item".equals(params.get("api"))) {
-                    assert params.get("limit").equals("100") && params.get("additional").equals("[\"thumbnail\"]");
+                    assert params.get("limit").equals("100");
+                    lastAdditional = params.get("additional");
+                    assert lastAdditional.equals("[\"thumbnail\"]") || lastAdditional.equals("[\"thumbnail\",\"address\"]");
                     assert params.get("sort_by").equals("\"takentime\"") && params.get("passphrase").equals("\"album-token\"");
                     JSONArray items = new JSONArray();
                     if (params.get("offset").equals("0")) {
@@ -405,8 +474,9 @@ public final class PluginTest {
             } finally { exchange.close(); }
         }
         JSONObject photo(int id) {
-            return new JSONObject().put("id", id).put("type", "photo").put("additional",
-                new JSONObject().put("thumbnail", new JSONObject().put("cache_key", "cache-" + id)));
+            JSONObject additional = new JSONObject().put("thumbnail", new JSONObject().put("cache_key", "cache-" + id));
+            if (id == 1) additional.put("address", new JSONObject().put("city", "Amsterdam").put("country", "Netherlands"));
+            return new JSONObject().put("id", id).put("type", "photo").put("additional", additional);
         }
         Map<String, String> decode(HttpExchange exchange) throws IOException {
             ByteArrayOutputStream body = new ByteArrayOutputStream();

@@ -64,11 +64,16 @@ final class SynologyClient implements AutoCloseable {
     }
 
     List<Photo> listPhotos() throws IOException {
+        return listPhotos(false);
+    }
+
+    List<Photo> listPhotos(boolean includeLocation) throws IOException {
         List<Photo> photos = new ArrayList<>();
         for (int offset = 0; offset < MAX_ITEMS; offset += PAGE_SIZE) {
             JSONObject data = api(albumEndpoint, params("SYNO.Foto.Browse.Item", "list", "1",
                 "offset", String.valueOf(offset), "limit", String.valueOf(PAGE_SIZE),
-                "additional", "[\"thumbnail\"]", "sort_by", "takentime", "sort_direction", "asc",
+                "additional", includeLocation ? "[\"thumbnail\",\"address\"]" : "[\"thumbnail\"]",
+                "sort_by", "takentime", "sort_direction", "asc",
                 "passphrase", sharingId));
             try {
                 JSONArray items = data.getJSONArray("list");
@@ -78,13 +83,31 @@ final class SynologyClient implements AutoCloseable {
                     JSONObject additional = item.optJSONObject("additional");
                     JSONObject thumbnail = additional == null ? null : additional.optJSONObject("thumbnail");
                     if (thumbnail != null && !thumbnail.optString("cache_key").isEmpty()) {
-                        photos.add(new Photo(item.getLong("id"), thumbnail.getString("cache_key")));
+                        photos.add(new Photo(item.getLong("id"), thumbnail.getString("cache_key"),
+                            includeLocation ? location(additional.optJSONObject("address")) : ""));
                     }
                 }
                 if (items.length() < PAGE_SIZE) return photos;
             } catch (JSONException error) { throw new IOException("Unexpected Synology Photos album response. Check your Photos version."); }
         }
         throw new IOException("This album exceeds 50,000 items. Use a smaller screensaver album.");
+    }
+
+    static String location(JSONObject address) {
+        if (address == null) return "";
+        String place = "";
+        for (String key : new String[]{"city", "town", "village", "county", "state"}) {
+            Object value = address.opt(key);
+            if (value instanceof String && !((String) value).trim().isEmpty()) {
+                place = ((String) value).trim();
+                break;
+            }
+        }
+        Object value = address.opt("country");
+        String country = value instanceof String ? ((String) value).trim() : "";
+        String label = place.isEmpty() ? country : country.isEmpty() || place.equalsIgnoreCase(country)
+            ? place : place + ", " + country;
+        return label.length() > 200 ? label.substring(0, 199) + "…" : label;
     }
 
     Image image(Photo photo) throws IOException {
@@ -211,7 +234,11 @@ final class SynologyClient implements AutoCloseable {
     static final class Photo {
         final long id;
         final String cacheKey;
-        Photo(long id, String cacheKey) { this.id = id; this.cacheKey = cacheKey; }
+        final String location;
+        Photo(long id, String cacheKey) { this(id, cacheKey, ""); }
+        Photo(long id, String cacheKey, String location) {
+            this.id = id; this.cacheKey = cacheKey; this.location = location;
+        }
     }
 
     static final class Image {

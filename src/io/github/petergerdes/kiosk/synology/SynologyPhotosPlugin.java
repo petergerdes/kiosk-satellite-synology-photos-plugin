@@ -154,6 +154,7 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
         boolean hasPhoto;
         boolean wasVisible;
         SynologyClient.Image previousImage;
+        String previousLocation = "";
 
         Session(Map<String, Object> settings) {
             client = new SynologyClient(string(settings, "albumUrl"), string(settings, "albumPassword"));
@@ -174,7 +175,7 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
             try {
                 if (updating) {
                     client.login();
-                    List<SynologyClient.Photo> updated = client.listPhotos();
+                    List<SynologyClient.Photo> updated = client.listPhotos(Boolean.TRUE.equals(renderSettings.get("showLocation")));
                     if (updated.isEmpty()) throw new java.io.IOException("No photos with thumbnails found. Add photos to this album and let Synology finish indexing.");
                     photos = updated;
                     index = 0;
@@ -193,7 +194,7 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
                 else if (outgoing != null && outgoing.bytes.length + image.bytes.length > PhotoHtml.MAX_IMAGE_BYTES) {
                     outgoing = PhotoEncoder.fit(outgoing.bytes, outgoing.mime, PhotoHtml.MAX_IMAGE_BYTES - image.bytes.length);
                 }
-                String html = PhotoHtml.photo(outgoing, image, renderSettings);
+                String html = PhotoHtml.photo(outgoing, image, renderSettings, previousLocation, photo.location);
                 synchronized (SynologyPhotosPlugin.this) {
                     if (session != this || host == null) return;
                     host.publishScreensaver(KEY, "Album", html);
@@ -201,6 +202,7 @@ public final class SynologyPhotosPlugin implements KioskPlugin {
                 }
                 lastPhoto = photo.id;
                 previousImage = image;
+                previousLocation = photo.location;
                 hasPhoto = true;
                 wasVisible = showing;
                 failures = 0;
